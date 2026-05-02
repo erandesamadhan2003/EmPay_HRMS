@@ -91,6 +91,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
         admin: "/admin/dashboard",
         hr: "/hr/dashboard",
         payroll: "/payroll/dashboard",
+        payroll_officer: "/payroll/dashboard",
         employee: "/employee/dashboard",
       };
 
@@ -140,6 +141,7 @@ const PublicRoute = ({ children }) => {
         admin: "/admin/dashboard",
         hr: "/hr/dashboard",
         payroll: "/payroll/dashboard",
+        payroll_officer: "/payroll/dashboard",
         employee: "/employee/dashboard",
       };
 
@@ -184,7 +186,7 @@ const router = createBrowserRouter([
   {
     path: "/change-password",
     element: (
-      <ProtectedRoute allowedRoles={["admin", "hr", "payroll", "employee", "superadmin"]}>
+      <ProtectedRoute allowedRoles={["admin", "hr", "payroll", "payroll_officer", "employee", "superadmin"]}>
         <ChangePassword />
       </ProtectedRoute>
     ),
@@ -262,6 +264,14 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+  {
+    path: "/admin/assistant",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminAssistant />
+      </ProtectedRoute>
+    ),
+  },
 
   // HR Routes
   {
@@ -312,12 +322,20 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+  {
+    path: "/hr/assistant",
+    element: (
+      <ProtectedRoute allowedRoles={["hr"]}>
+        <HRAssistant />
+      </ProtectedRoute>
+    ),
+  },
 
   // Payroll Routes
   {
     path: "/payroll/dashboard",
     element: (
-      <ProtectedRoute allowedRoles={["payroll"]}>
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
         <PayrollDashboard />
       </ProtectedRoute>
     ),
@@ -325,7 +343,7 @@ const router = createBrowserRouter([
   {
     path: "/payroll/management",
     element: (
-      <ProtectedRoute allowedRoles={["payroll"]}>
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
         <PayrollManagement />
       </ProtectedRoute>
     ),
@@ -333,7 +351,7 @@ const router = createBrowserRouter([
   {
     path: "/payroll/payslips",
     element: (
-      <ProtectedRoute allowedRoles={["payroll"]}>
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
         <PayrollPayslips />
       </ProtectedRoute>
     ),
@@ -341,7 +359,7 @@ const router = createBrowserRouter([
   {
     path: "/payroll/salary",
     element: (
-      <ProtectedRoute allowedRoles={["payroll"]}>
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
         <PayrollSalary />
       </ProtectedRoute>
     ),
@@ -349,7 +367,7 @@ const router = createBrowserRouter([
   {
     path: "/payroll/leaves",
     element: (
-      <ProtectedRoute allowedRoles={["payroll"]}>
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
         <PayrollLeaves />
       </ProtectedRoute>
     ),
@@ -357,7 +375,7 @@ const router = createBrowserRouter([
   {
     path: "/payroll/reports",
     element: (
-      <ProtectedRoute allowedRoles={["payroll"]}>
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
         <PayrollReports />
       </ProtectedRoute>
     ),
@@ -365,7 +383,7 @@ const router = createBrowserRouter([
   {
     path: "/payroll/profile",
     element: (
-      <ProtectedRoute allowedRoles={["payroll"]}>
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
         <PayrollProfile />
       </ProtectedRoute>
     ),
@@ -417,6 +435,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute allowedRoles={["employee"]}>
         <EmpProfile />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/employee/assistant",
+    element: (
+      <ProtectedRoute allowedRoles={["employee"]}>
+        <EmpAssistant />
       </ProtectedRoute>
     ),
   },

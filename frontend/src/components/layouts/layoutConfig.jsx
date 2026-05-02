@@ -20,6 +20,7 @@ export const ROLE_BADGE_COLORS = {
   admin: C.accent,
   hr: C.cyan,
   payroll: C.warning,
+  payroll_officer: C.warning,
   employee: C.success,
   superadmin: '#8B5CF6',
 };
@@ -35,6 +36,7 @@ export const NAV_CONFIG = {
     { label: 'Reports', icon: 'bar-chart', path: '/admin/reports' },
     { label: 'Settings', icon: 'settings', path: '/admin/settings' },
     { label: 'Assistant', icon: 'activity', path: '/admin/assistant' },
+    { label: 'Profile', icon: 'user', path: '/admin/profile' },
   ],
   hr: [
     { label: 'Dashboard', icon: 'grid', path: '/hr/dashboard' },
@@ -47,10 +49,19 @@ export const NAV_CONFIG = {
   ],
   payroll: [
     { label: 'Dashboard', icon: 'grid', path: '/payroll/dashboard' },
-    { label: 'Payroll Management', icon: 'dollar', path: '/payroll/manage' },
+    { label: 'Payroll Management', icon: 'dollar', path: '/payroll/management' },
     { label: 'Payslips', icon: 'file-text', path: '/payroll/payslips' },
     { label: 'Salary Management', icon: 'trending-up', path: '/payroll/salary' },
-    { label: 'Leave Requests', icon: 'calendar', path: '/payroll/leave-requests' },
+    { label: 'Leave Requests', icon: 'calendar', path: '/payroll/leaves' },
+    { label: 'Reports', icon: 'bar-chart', path: '/payroll/reports' },
+    { label: 'Profile', icon: 'user', path: '/payroll/profile' },
+  ],
+  payroll_officer: [
+    { label: 'Dashboard', icon: 'grid', path: '/payroll/dashboard' },
+    { label: 'Payroll Management', icon: 'dollar', path: '/payroll/management' },
+    { label: 'Payslips', icon: 'file-text', path: '/payroll/payslips' },
+    { label: 'Salary Management', icon: 'trending-up', path: '/payroll/salary' },
+    { label: 'Leave Requests', icon: 'calendar', path: '/payroll/leaves' },
     { label: 'Reports', icon: 'bar-chart', path: '/payroll/reports' },
     { label: 'Profile', icon: 'user', path: '/payroll/profile' },
   ],

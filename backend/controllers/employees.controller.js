@@ -341,8 +341,15 @@ export async function deleteEmployee(req, res) {
 		const target = await resolveStaffAdminTarget(req, id);
 		if (!target) return res.status(404).json(errorResponse("Employee not found"));
 
+		// Cancel any pending/approved leave requests (cascade cleanup)
+		await req.db.query(
+			`UPDATE time_off_requests SET status = 'cancelled', updated_at = NOW()
+			 WHERE user_id = $1 AND status IN ('pending', 'approved')`,
+			[id],
+		);
+
 		await deactivateUser(req.db, id);
-		return res.json(successResponse(null, "Employee deactivated"));
+		return res.json(successResponse(null, "Employee deactivated and open leave requests cancelled"));
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json(errorResponse("Unable to deactivate employee"));

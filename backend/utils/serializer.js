@@ -87,12 +87,20 @@ export function serializeUserProfile(row) {
 }
 
 const SELF_PROFILE_KEYS = new Set([
+	"location",
+	"gender",
 	"personal_email",
 	"about",
 	"skills",
 	"certifications",
 	"nationality",
 	"marital_status",
+	"bank_account_number",
+	"bank_name",
+	"ifsc_code",
+	"pan_number",
+	"uan_number",
+	"esic_number"
 ]);
 
 /** Fields an employee may edit on their own profile (see routes reference). */

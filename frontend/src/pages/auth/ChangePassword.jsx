@@ -177,9 +177,27 @@ export default function ChangePassword() {
       setLoading(false);
       setSuccess(true);
       setTimeout(() => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        navigate("/login");
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            user.must_change_pwd = false;
+            localStorage.setItem("user", JSON.stringify(user));
+            
+            const roleDashboards = {
+              superadmin: "/superadmin/dashboard",
+              admin: "/admin/dashboard",
+              hr: "/hr/dashboard",
+              payroll: "/payroll/dashboard",
+              employee: "/employee/dashboard",
+            };
+            navigate(roleDashboards[user.role] || "/employee/dashboard");
+          } catch (e) {
+            navigate("/login");
+          }
+        } else {
+          navigate("/login");
+        }
       }, 1500);
     } catch (err) {
       setLoading(false);

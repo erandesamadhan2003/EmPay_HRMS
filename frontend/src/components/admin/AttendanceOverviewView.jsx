@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAllAttendance, useEmployees, useDepartments } from '../../hooks';
 import { LoadingSpinner, ErrorState } from './shared';
+import ExportButton from '../ui/ExportButton';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
 
@@ -151,6 +152,7 @@ export default function AttendanceOverviewView(){
             <p style={{ fontSize: 13, color: C.muted, fontWeight: 300, marginTop: 4 }}>Track employee attendance records</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <ExportButton data={filtered.map(emp => ({ Name: emp.name, Department: emp.dept, 'Present Days': emp.days.filter(d => d==='P').length, 'Total Leave': emp.days.filter(d => d==='L').length, 'Total Absent': emp.days.filter(d => d==='A').length }))} filename={`attendance_${MONTHS[month]}_${year}.csv`} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: '6px 12px' }}>
               <div onClick={prevMonth} style={{ cursor: 'pointer', display: 'flex' }}><ChevIco dir="left" /></div>
               <span style={{ fontSize: 14, fontWeight: 500, color: C.text, minWidth: 120, textAlign: 'center' }}>{MONTHS[month]} {year}</span>

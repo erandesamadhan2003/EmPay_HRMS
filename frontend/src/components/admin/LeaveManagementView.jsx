@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTimeOffRequests, useTimeOffRequestMutations, useTimeOffAllocations, useTimeOffAllocationMutations, useEmployees } from '../../hooks';
 import { LoadingSpinner, ErrorState } from './shared';
+import ExportButton from '../ui/ExportButton';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
 
@@ -128,6 +129,7 @@ export default function LeaveManagementView(){
             <p style={{fontSize:13,color:C.muted,fontWeight:300,marginTop:4}}>Review and manage employee leave requests</p>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <ExportButton data={filtered.map(l => ({ Employee: l.employeeName, ID: l.employeeId, Type: l.leaveType, From: l.fromDate, To: l.toDate, Days: l.days, Reason: l.reason, Status: l.status }))} filename="leave_requests.csv" />
             <select value={typeF} onChange={e=>setTypeF(e.target.value)} style={{background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'8px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',cursor:'pointer'}}>
               {['All','Annual Leave','Sick Leave','Personal Leave','Emergency Leave'].map(t=><option key={t} value={t} style={{background:C.surface}}>{t==='All'?'All Types':t}</option>)}
             </select>

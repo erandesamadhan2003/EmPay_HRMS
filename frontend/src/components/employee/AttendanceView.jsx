@@ -17,6 +17,7 @@ const STATUS_MAP = {
   absent:  { color: C.danger, label: 'Absent', abbr: 'A' },
   on_leave: { color: C.warning, label: 'On Leave', abbr: 'L' },
   half_day: { color: C.cyan, label: 'Half Day', abbr: 'H' },
+  future: { color: C.muted, label: '—', abbr: '—' },
 };
 
 const ChevIco = ({ dir = 'left' }) => (
@@ -60,20 +61,33 @@ export default function AttendanceView() {
 
   const tableData = useMemo(() => {
     const rows = [];
+    const todayStr = new Date().toISOString().slice(0, 10);
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayOfWeek = new Date(year, month, d).getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isFuture = dateStr > todayStr;
       const record = records.find(r => {
         const rDate = r.date ? new Date(r.date).toISOString().slice(0, 10) : '';
         return rDate === dateStr;
       });
+      let status;
+      if (record) {
+        status = record.status;
+      } else if (isWeekend) {
+        status = 'weekend';
+      } else if (isFuture) {
+        status = 'future';
+      } else {
+        status = 'absent';
+      }
       rows.push({
         date: dateStr,
         dayName: new Date(year, month, d).toLocaleDateString('en-US', { weekday: 'short' }),
         dayNum: d,
         isWeekend,
-        status: record?.status || (isWeekend ? 'weekend' : 'absent'),
+        isFuture,
+        status,
         checkIn: record?.check_in || record?.checkIn || null,
         checkOut: record?.check_out || record?.checkOut || null,
         workHours: record?.work_hours || record?.workHours || 0,

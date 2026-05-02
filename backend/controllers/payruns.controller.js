@@ -1,5 +1,6 @@
 import { successResponse, errorResponse } from "../utils/constant.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
+import { sendPayslipNotification } from "../services/email.service.js";
 import {
 	countPayruns,
 	listPayruns,
@@ -273,16 +274,41 @@ export async function payPayrunController(req, res) {
 		if (!row) return res.status(404).json(errorResponse("Payrun not found"));
 		if (row.status === "cancelled") return res.status(422).json(errorResponse("Cancelled payrun cannot be paid"));
 		if (row.status === "paid") return res.json(successResponse({ id: row.id, status: row.status, paidAt: row.paid_at }, "Payrun already paid"));
-		const payDate = req.body?.payDate ?? req.body?.pay_date ?? null;
+		const payDate = req.body?.payDate ?? req.body?.pay_date ?? new Date().toISOString().slice(0, 10);
 		const updated = await updatePayrunStatus(req.db, row.id, req.user.company_id, "paid", req.user.id, payDate);
 		await req.db.query(
 			`UPDATE payslips SET status = 'paid', pay_date = $2::date, updated_at = NOW() WHERE payrun_id = $1`,
-			[row.id, payDate || new Date().toISOString().slice(0, 10)],
+			[row.id, payDate],
 		);
+
+		// Send payslip notification emails (non-blocking)
+		try {
+			const { rows: slipRows } = await req.db.query(
+				`SELECT ps.net_salary, ps.period_start, ps.period_end, u.name, u.email
+				 FROM payslips ps
+				 JOIN users u ON u.id = ps.user_id
+				 WHERE ps.payrun_id = $1 AND u.email IS NOT NULL`,
+				[row.id],
+			);
+			const periodStr = new Date(row.period_start).toLocaleString("en-IN", { month: "long", year: "numeric" });
+			const payDateStr = new Date(payDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+			for (const slip of slipRows) {
+				sendPayslipNotification({
+					to: slip.email,
+					name: slip.name,
+					period: periodStr,
+					netSalary: slip.net_salary,
+					payDate: payDateStr,
+				}).catch(e => console.error("[email] Payslip email error:", e.message));
+			}
+		} catch (emailErr) {
+			console.error("[email] Error fetching payslip data for emails:", emailErr.message);
+		}
+
 		return res.json(
 			successResponse(
 				{ id: updated.id, status: updated.status, paidAt: updated.paid_at },
-				"Payrun marked as paid. Payslip PDFs are being generated and emailed.",
+				"Payrun marked as paid. Employees will be notified by email.",
 			),
 		);
 	} catch (err) {

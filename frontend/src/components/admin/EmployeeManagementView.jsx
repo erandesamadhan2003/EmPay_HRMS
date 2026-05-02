@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEmployees, useEmployeeMutations, useDepartments } from '../../hooks';
 import { LoadingSpinner, ErrorState } from './shared';
+import ExportButton from '../ui/ExportButton';
 
 const C = {
   bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',
@@ -140,10 +141,12 @@ export default function EmployeeManagementView() {
       };
       if (modal === 'add') {
         await createEmployee(payload);
+        await refetch();
         setSaveSuccess('Employee created! They will receive a temporary password.');
         setTimeout(() => closeModal(), 1800);
       } else if (modal === 'edit' && modalEmp) {
         await updateEmployee({ id: modalEmp.id, data: payload });
+        await refetch();
         setSaveSuccess('Employee updated successfully.');
         setTimeout(() => closeModal(), 1200);
       }
@@ -156,7 +159,7 @@ export default function EmployeeManagementView() {
 
   const handleDelete = async () => {
     try {
-      if (modalEmp) await deleteEmployee(modalEmp.id);
+      if (modalEmp) { await deleteEmployee(modalEmp.id); await refetch(); }
       closeModal();
     } catch (err) { console.error('Delete failed:', err); }
   };
@@ -180,11 +183,14 @@ export default function EmployeeManagementView() {
             <h2 style={{fontSize:22,fontWeight:600,color:C.text,margin:0}}>Employees</h2>
             <p style={{fontSize:13,color:C.muted,fontWeight:300,marginTop:4}}>Manage your team</p>
           </div>
-          <button onClick={openAdd} style={{background:C.teal,color:'#fff',border:'none',borderRadius:10,padding:'10px 22px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',transition:'all .25s'}}
-            onMouseEnter={e=>{e.currentTarget.style.boxShadow=`0 4px 20px ${C.tealLight}`;e.currentTarget.style.transform='translateY(-2px)'}}
-            onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}}>
-            + Add Employee
-          </button>
+          <div style={{display:'flex',gap:12,alignItems:'center'}}>
+            <ExportButton data={filtered} filename="employees_export.csv" />
+            <button onClick={openAdd} style={{background:C.teal,color:'#fff',border:'none',borderRadius:10,padding:'10px 22px',fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',transition:'all .25s'}}
+              onMouseEnter={e=>{e.currentTarget.style.boxShadow=`0 4px 20px ${C.tealLight}`;e.currentTarget.style.transform='translateY(-2px)'}}
+              onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}}>
+              + Add Employee
+            </button>
+          </div>
         </div>
 
         {/* FILTER BAR */}

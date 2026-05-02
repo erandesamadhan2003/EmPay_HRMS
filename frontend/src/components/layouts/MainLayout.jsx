@@ -65,15 +65,18 @@ export default function MainLayout({
   // Get real user data from local storage
   const auth = JSON.parse(localStorage.getItem('empay_auth') || '{}');
   const user = auth.user || {};
-  const actualName = user.name || userName;
-  const actualInitials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : userInitials;
-  const actualRole = user.role || role;
+  const lsUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const actualName = user.name || lsUser.name || userName;
+  const actualInitials = actualName ? actualName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : userInitials;
+  const actualRole = user.role || lsUser.role || role;
 
   const handleLogout = useCallback(() => {
     if (onLogout) {
       onLogout();
     } else {
       localStorage.removeItem('empay_auth');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       navigate('/login');
     }
   }, [onLogout, navigate]);

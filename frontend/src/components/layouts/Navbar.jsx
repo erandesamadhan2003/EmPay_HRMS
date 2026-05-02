@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { C, Icon } from './layoutConfig.jsx';
 
 export function Navbar({
@@ -45,9 +46,11 @@ export function Navbar({
     if (searchOpen && searchRef.current) searchRef.current.focus();
   }, [searchOpen]);
 
+  const navigate = useNavigate();
+
   const dropdownItems = [
-    { label: 'My Profile', icon: 'user', action: () => {} },
-    ...(role === 'admin' ? [{ label: 'Settings', icon: 'settings', action: () => {} }] : []),
+    { label: 'My Profile', icon: 'user', action: () => navigate(`/${role === 'payroll_officer' ? 'payroll' : role}/profile`) },
+    ...(role === 'admin' ? [{ label: 'Settings', icon: 'settings', action: () => navigate('/admin/settings') }] : []),
     { divider: true },
     { label: 'Logout', icon: 'log-out', action: onLogout, danger: true },
   ];
