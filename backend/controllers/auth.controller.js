@@ -17,6 +17,8 @@ import {
 	createCompanyRequest,
 	findCompanyRequestByCompanyId,
 } from "../models/CompanyRequest.js";
+import { sendEmail } from "../utils/emailService.js";
+import { generateSuperAdminRegistrationTemplate } from "../templates/registrationEmail.js";
 
 dotenv.config();
 
@@ -106,12 +108,33 @@ export async function registerUser(req, res) {
 
 		await client.query("COMMIT");
 
+		const notificationRecipient = process.env.SUPER_ADMIN_EMAIL || "samadhanerande2003@gmail.com";
+		const emailTemplate = generateSuperAdminRegistrationTemplate({
+			companyName: company.name,
+			userName: user.name,
+			userEmail: user.email,
+			userPhone: user.phone,
+			loginId,
+			companyId: company_id,
+			registrationDate: new Date().toLocaleString(),
+		});
+
+		const emailResult = await sendEmail({
+			to: notificationRecipient,
+			subject: emailTemplate.subject,
+			html: emailTemplate.html,
+			text: emailTemplate.text,
+		});
+
+		console.log("Super admin registration notification sent:", emailResult);
+
 		return res.json(
 			successResponse(
 				{
 					id: user.id,
 					loginId,
 					companyRequestId: requestRow?.id ?? null,
+					notificationEmailSent: emailResult.success,
 				},
 				"User registered - pending approval",
 			),
@@ -123,7 +146,7 @@ export async function registerUser(req, res) {
 			const msg =
 				/login_id|users_login_id/i.test(detail) ?
 					"Login id already in use"
-				:	"User with this email already exists";
+					: "User with this email already exists";
 			return res.status(409).json(errorResponse(msg));
 		}
 		console.error(err);
@@ -154,7 +177,7 @@ export async function login(req, res) {
 
 		const company = user.company_id ?
 			(await findCompanyById(req.db, user.company_id))?.name
-		:	null;
+			: null;
 
 		const must = user.must_change_pwd;
 		return res.json(
@@ -176,7 +199,7 @@ export async function login(req, res) {
 				},
 				must ?
 					"Login successful. Password change required."
-				:	"Login successful",
+					: "Login successful",
 			),
 		);
 	} catch (err) {

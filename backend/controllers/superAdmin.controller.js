@@ -4,7 +4,10 @@ import {
 	reviewCompanyRequest as reviewCompanyRequestModel,
 	listCompanyRequestsPaged,
 } from "../models/CompanyRequest.js";
-import { activateUser } from "../models/User.js";
+import { activateUser, findUserById } from "../models/User.js";
+import { findCompanyById } from "../models/Company.js";
+import { sendEmail } from "../utils/emailService.js";
+import { generateAccountVerifiedTemplate } from "../templates/accountVerifiedEmail.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
 import { serializePagination } from "../utils/serializer.js";
 
@@ -30,6 +33,25 @@ export async function reviewCompanyRequest(req, res) {
 
 		if (action === "approve") {
 			await activateUser(req.db, requestRow.admin_user_id);
+
+			const verifiedUser = await findUserById(req.db, requestRow.admin_user_id);
+			const company = await findCompanyById(req.db, requestRow.company_id);
+			if (verifiedUser && company) {
+				const emailTemplate = generateAccountVerifiedTemplate({
+					userName: verifiedUser.name,
+					userEmail: verifiedUser.email,
+					loginId: verifiedUser.login_id,
+					temporaryPassword: "samadhan",
+					companyName: company.name,
+				});
+
+				await sendEmail({
+					to: verifiedUser.email,
+					subject: emailTemplate.subject,
+					html: emailTemplate.html,
+					text: emailTemplate.text,
+				});
+			}
 		}
 
 		return res.json(
@@ -73,7 +95,7 @@ export async function listCompanyRequests(req, res) {
 					email: r.admin_email,
 					loginId: r.admin_login_id,
 				}
-			:	{ id: r.admin_user_id, name: r.admin_name, email: r.admin_email },
+				: { id: r.admin_user_id, name: r.admin_name, email: r.admin_email },
 			createdAt: r.created_at,
 		}));
 
