@@ -3,10 +3,7 @@ import { usePayruns, usePayrunMutations, usePayslips, usePayslipMutations, useEm
 import { LoadingSpinner, ErrorState } from './shared';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
-
-// Fallback data kept minimal
-const MONTHS_FB=['January 2025','February 2025','March 2025','April 2025','May 2025'];
-const ST_C={Paid:C.teal,Pending:C.warning,Processing:C.cyan,paid:C.teal,pending:C.warning,processing:C.cyan};
+const ST_C={Paid:C.teal,Pending:C.warning,Processing:C.cyan,paid:C.teal,pending:C.warning,processing:C.cyan,draft:C.muted,Draft:C.muted};
 const fmt=v=>'₹'+(v||0).toLocaleString('en-IN');
 
 const numWords=(n)=>{const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];if(n===0)return'Zero';let s='';if(Math.floor(n/100000)>0){s+=a[Math.floor(n/100000)]+' Lakh ';n%=100000;}if(Math.floor(n/1000)>0){const t=Math.floor(n/1000);s+=(t<20?a[t]:b[Math.floor(t/10)]+(t%10?' '+a[t%10]:''))+' Thousand ';n%=1000;}if(Math.floor(n/100)>0){s+=a[Math.floor(n/100)]+' Hundred ';n%=100;}if(n>0){if(n<20)s+=a[n];else s+=b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');}return s.trim()+' Only';};
@@ -33,8 +30,6 @@ export default function PayrollOverviewView(){
   const { createPayrun, isCreating: isCreatingPayrun } = usePayrunMutations();
   const { loadPayslipPdfBlob } = usePayslipMutations();
 
-  // Map employee data — backend returns { data: { items: [...] } }
-  // serializer fields: { id, name, role, isActive, profile: { designation, department: {name}, dateOfJoining } }
   const rawEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
   const EMPS = (Array.isArray(rawEmps) ? rawEmps : []).map(e => {
     const basic = e.salary?.basic || e.basicSalary || 0;
@@ -43,14 +38,8 @@ export default function PayrollOverviewView(){
     const pf = Math.round(basic * 0.12);
     const pt = 200;
     return {
-      id: e.id,
-      name: e.name || 'Unknown',
-      department: e.profile?.department?.name || '\u2014',
-      basicSalary: basic,
-      hra,
-      allowances,
-      pfDeduction: pf,
-      professionalTax: pt,
+      id: e.id, name: e.name || 'Unknown', department: e.profile?.department?.name || '\u2014',
+      basicSalary: basic, hra, allowances, pfDeduction: pf, professionalTax: pt,
       status: e.payrollStatus || 'Pending',
       netSalary: basic + hra + allowances - pf - pt,
     };
@@ -62,8 +51,9 @@ export default function PayrollOverviewView(){
     const d = new Date(now.getFullYear(), now.getMonth() - (4 - i), 1);
     return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
   });
+  const currentMonth = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
-  const [month,setMonth]=useState('May 2025');
+  const [month,setMonth]=useState(currentMonth);
   const [modal,setModal]=useState(null);
   const [payrun,setPayrun]=useState(false);
 
@@ -80,7 +70,28 @@ export default function PayrollOverviewView(){
   ];
 
   const handlePayrun = async () => {
-    try { await createPayrun({ month, year: 2025 }); setPayrun(false); } catch(err) { console.error('Payrun failed:', err); }
+    try { await createPayrun({ month, year: now.getFullYear() }); setPayrun(false); } catch(err) { console.error('Payrun failed:', err); }
+  };
+
+  const handleDownload = async (emp) => {
+    try {
+      if (loadPayslipPdfBlob) {
+        const blob = await loadPayslipPdfBlob(emp.id);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `payslip_${emp.name.replace(/\s+/g,'_')}.pdf`; a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) { console.error('Download failed:', e); }
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Name','Dept','Basic','HRA','Allowances','PF','Tax','Net Salary','Status'];
+    const rows = EMPS.map(e => [e.name, e.department, e.basicSalary, e.hra, e.allowances, e.pfDeduction, e.professionalTax, e.netSalary, e.status]);
+    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `payroll_${month.replace(/\s+/g,'_')}.csv`; a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) return <LoadingSpinner message="Loading payroll..." />;
@@ -93,8 +104,6 @@ export default function PayrollOverviewView(){
     <>
       <Styles/>
       <div style={{fontFamily:'Poppins,sans-serif',maxWidth:1200,margin:'0 auto'}}>
-
-        {/* TOP BAR */}
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,flexWrap:'wrap',gap:14}}>
           <div>
             <h2 style={{fontSize:22,fontWeight:600,color:C.text,margin:0}}>Payroll Overview</h2>
@@ -109,14 +118,13 @@ export default function PayrollOverviewView(){
               onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none'}}>
               Generate Payrun
             </button>
-            <button style={{background:'transparent',border:`1px solid ${C.teal}`,borderRadius:10,padding:'9px 18px',color:C.teal,fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'Poppins,sans-serif',transition:'all .2s'}}
+            <button onClick={handleExportCSV} style={{background:'transparent',border:`1px solid ${C.teal}`,borderRadius:10,padding:'9px 18px',color:C.teal,fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'Poppins,sans-serif',transition:'all .2s'}}
               onMouseEnter={e=>e.currentTarget.style.background=C.tealLight} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
               Export Report
             </button>
           </div>
         </div>
 
-        {/* STATS */}
         <div className="po-stats" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:24}}>
           {stats.map((s,i)=>(
             <div key={s.label} className="po-card" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:14,padding:'16px 20px',animationDelay:`${i*80}ms`}}>
@@ -126,15 +134,15 @@ export default function PayrollOverviewView(){
           ))}
         </div>
 
-        {/* TABLE */}
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:16,overflow:'auto',marginBottom:8}}>
           <table style={{width:'100%',borderCollapse:'collapse',minWidth:900}}>
             <thead><tr>
               {['Employee','Dept','Basic','HRA','Allow.','PF','Tax','Net Salary','Status','Actions'].map(h=><th key={h} style={th}>{h}</th>)}
             </tr></thead>
             <tbody>
+              {EMPS.length === 0 && <tr><td colSpan={10} style={{...td,textAlign:'center',padding:40,color:C.muted}}>No employees found</td></tr>}
               {EMPS.map((e,i)=>{
-                const sc=ST_C[e.status];
+                const sc=ST_C[e.status]||C.muted;
                 return(
                   <tr key={e.id} className="po-row" style={{background:i%2?C.surfaceHover:'transparent',transition:'background .15s'}}>
                     <td style={{...td,fontWeight:500}}>{e.name}</td>
@@ -149,23 +157,22 @@ export default function PayrollOverviewView(){
                     <td style={td}>
                       <div style={{display:'flex',gap:4}}>
                         <button className="po-abtn" title="View Payslip" onClick={()=>setModal(e)} onMouseEnter={ev=>ev.currentTarget.style.background=`${C.cyan}18`} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><EyeIco/></button>
-                        <button className="po-abtn" title="Download" onMouseEnter={ev=>ev.currentTarget.style.background=C.tealLight} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><DlIco/></button>
+                        <button className="po-abtn" title="Download" onClick={()=>handleDownload(e)} onMouseEnter={ev=>ev.currentTarget.style.background=C.tealLight} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><DlIco/></button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
-              {/* Totals row */}
-              <tr style={{background:C.bg}}>
+              {EMPS.length > 0 && <tr style={{background:C.bg}}>
                 <td style={{...td,fontWeight:700}} colSpan={2}>TOTAL</td>
                 <td style={{...td,fontWeight:700}}>{fmt(EMPS.reduce((a,e)=>a+e.basicSalary,0))}</td>
                 <td style={{...td,fontWeight:700}}>{fmt(EMPS.reduce((a,e)=>a+e.hra,0))}</td>
                 <td style={{...td,fontWeight:700}}>{fmt(EMPS.reduce((a,e)=>a+e.allowances,0))}</td>
-                <td style={{...td,fontWeight:700,color:C.danger}}>-{fmt(totDed-EMPS.reduce((a,e)=>a+e.professionalTax,0))}</td>
+                <td style={{...td,fontWeight:700,color:C.danger}}>-{fmt(EMPS.reduce((a,e)=>a+e.pfDeduction,0))}</td>
                 <td style={{...td,fontWeight:700,color:C.danger}}>-{fmt(EMPS.reduce((a,e)=>a+e.professionalTax,0))}</td>
                 <td style={{...td,fontWeight:700,color:C.teal}}>{fmt(totNet)}</td>
                 <td style={td}></td><td style={td}></td>
-              </tr>
+              </tr>}
             </tbody>
           </table>
         </div>
@@ -176,8 +183,6 @@ export default function PayrollOverviewView(){
         <div className="po-overlay" onClick={()=>setModal(null)}>
           <div className="po-modal" style={{maxWidth:560,maxHeight:'90vh',overflowY:'auto'}} onClick={e=>e.stopPropagation()}>
             <div className="po-noprint" onClick={()=>setModal(null)} style={{position:'absolute',top:16,right:16,cursor:'pointer'}}><XIco/></div>
-
-            {/* Payslip Header */}
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`1px solid ${C.border}`,paddingBottom:16,marginBottom:20}}>
               <div>
                 <div style={{fontSize:20,fontWeight:700,background:`linear-gradient(135deg,${C.teal},${C.cyan})`,WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>EmPay</div>
@@ -185,15 +190,11 @@ export default function PayrollOverviewView(){
               </div>
               <div style={{fontSize:18,fontWeight:700,color:C.accent,letterSpacing:'.06em'}}>PAYSLIP</div>
             </div>
-
-            {/* Employee Info */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20,fontSize:12}}>
-              {[['Name',modal.name],['Employee ID',`EMP-${modal.id.toString().padStart(3,'0')}`],['Department',modal.department],['Pay Period',month]].map(([k,v])=>(
+              {[['Name',modal.name],['Department',modal.department],['Pay Period',month],['Status',modal.status]].map(([k,v])=>(
                 <div key={k}><span style={{color:C.muted}}>{k}: </span><span style={{color:C.text,fontWeight:500}}>{v}</span></div>
               ))}
             </div>
-
-            {/* Earnings / Deductions */}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
               <div>
                 <div style={{fontSize:12,fontWeight:600,color:C.teal,textTransform:'uppercase',letterSpacing:'.04em',marginBottom:8}}>Earnings</div>
@@ -218,21 +219,14 @@ export default function PayrollOverviewView(){
                 </div>
               </div>
             </div>
-
-            {/* Net Pay */}
             <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:12,padding:'16px 20px',textAlign:'center',marginBottom:12}}>
               <div style={{fontSize:11,color:C.muted,textTransform:'uppercase',letterSpacing:'.04em',marginBottom:4}}>Net Pay</div>
               <div style={{fontSize:32,fontWeight:700,color:C.teal}}>{fmt(modal.netSalary)}</div>
-              <div style={{fontSize:11,color:C.muted,fontStyle:'italic',marginTop:4}}>In Words: {numWords(modal.netSalary)}</div>
+              <div style={{fontSize:11,color:C.muted,fontStyle:'italic',marginTop:4}}>In Words: {numWords(Math.max(0, modal.netSalary))}</div>
             </div>
-
-            {/* Actions */}
             <div className="po-noprint" style={{display:'flex',gap:12,justifyContent:'flex-end'}}>
-              <button onClick={()=>window.print()} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'9px 18px',color:C.text,fontSize:13,cursor:'pointer',fontFamily:'Poppins,sans-serif',display:'flex',alignItems:'center',gap:6}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                Print
-              </button>
-              <button style={{background:C.teal,border:'none',borderRadius:10,padding:'9px 18px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',display:'flex',alignItems:'center',gap:6}}>
+              <button onClick={()=>window.print()} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'9px 18px',color:C.text,fontSize:13,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Print</button>
+              <button onClick={()=>handleDownload(modal)} style={{background:C.teal,border:'none',borderRadius:10,padding:'9px 18px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',display:'flex',alignItems:'center',gap:6}}>
                 <DlIco color="#fff"/> Download
               </button>
             </div>

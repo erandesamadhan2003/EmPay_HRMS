@@ -1,24 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useEmployeeProfile, useEmployeeMutations } from '../../hooks';
+import { useEmployeeProfile, useEmployeeMutations, useMyAttendance, useMyTimeOffAllocations, useDashboardStats, useAuditLogs } from '../../hooks';
+import { authService } from '../../services';
 import { LoadingSpinner, ErrorState } from './shared';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
-
-// Fallback user data (used when API unavailable)
-const USER_DATA_FB={name:'Admin User',email:'admin@empay.io',phone:'+91 9876543210',dob:'1990-05-15',gender:'Male',address:'Vellore Institute of Technology',department:'Administration',designation:'System Administrator',joinDate:'2022-01-10',loginId:'EMP-AU-2022-001',role:'Admin'};
-
-const ACTIVITY=[
-  {action:'Approved leave request for Priya Mehta',time:'2 hours ago',icon:'✅'},
-  {action:'Generated payrun for May 2025',time:'5 hours ago',icon:'💰'},
-  {action:'Added new employee Karan Joshi',time:'1 day ago',icon:'👤'},
-  {action:'Updated department — Design',time:'1 day ago',icon:'🏢'},
-  {action:'Downloaded attendance report',time:'2 days ago',icon:'📥'},
-  {action:'Marked attendance — Present',time:'2 days ago',icon:'📋'},
-  {action:'Rejected leave for Vikram Singh',time:'3 days ago',icon:'❌'},
-  {action:'Updated payroll configuration',time:'4 days ago',icon:'⚙️'},
-  {action:'Applied for Annual Leave',time:'5 days ago',icon:'🏖️'},
-  {action:'Downloaded payslip — April',time:'1 week ago',icon:'📄'},
-];
 
 const fi={background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',width:'100%'};
 const lb={fontSize:11,color:C.muted,display:'block',marginBottom:4,fontWeight:500};
@@ -37,7 +22,7 @@ const Styles=()=><style dangerouslySetInnerHTML={{__html:`
 
 const ProgressBar=({value,max,color=C.teal})=>(
   <div style={{height:6,borderRadius:3,background:C.surfaceHover,overflow:'hidden',flex:1}}>
-    <div style={{height:'100%',borderRadius:3,background:color,width:`${(value/max)*100}%`,transition:'width .4s ease-out'}}/>
+    <div style={{height:'100%',borderRadius:3,background:color,width:`${Math.min(100,(value/max)*100)}%`,transition:'width .4s ease-out'}}/>
   </div>
 );
 
@@ -46,30 +31,74 @@ const pwStrength=(p)=>{if(p.length<4)return{w:20,c:C.danger,l:'Weak'};if(p.lengt
 export default function ProfileView(){
   const { data: profileData, isLoading, error, refetch } = useEmployeeProfile();
   const { updateEmployeeMe, isUpdatingMe } = useEmployeeMutations();
+  const { data: attData } = useMyAttendance();
+  const { data: allocData } = useMyTimeOffAllocations();
+  const { data: dashData } = useDashboardStats();
+  const { data: logsData } = useAuditLogs();
 
   const p = profileData?.data || profileData || {};
   const profileUser = {
     name: `${p.firstName||''} ${p.lastName||''}`.trim() || p.name || 'Admin User',
-    email: p.email || 'admin@empay.io',
+    email: p.email || '',
     phone: p.phone || '',
     dob: p.dateOfBirth || p.dob || '',
-    gender: p.gender || 'Male',
+    gender: p.gender || '',
     address: p.address || '',
-    department: p.department?.name || p.departmentName || 'Administration',
-    designation: p.jobTitle || p.designation || 'System Administrator',
+    department: p.department?.name || p.departmentName || '—',
+    designation: p.jobTitle || p.designation || '—',
     joinDate: p.joiningDate || p.createdAt || '',
     loginId: p.loginId || p.employeeId || '—',
     role: p.role || 'Admin',
   };
+  const userInitials = profileUser.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || 'AU';
+
+  // Attendance data from API
+  const rawAtt = attData?.data?.items ?? attData?.data ?? attData ?? [];
+  const attList = Array.isArray(rawAtt) ? rawAtt : [];
+  const presentCount = attList.filter(a => a.status === 'present').length;
+  const absentCount = attList.filter(a => a.status === 'absent').length;
+  const leaveCount = attList.filter(a => a.status === 'on_leave').length;
+  const totalDays = Math.max(1, presentCount + absentCount + leaveCount);
+  const attPct = Math.round((presentCount / totalDays) * 100);
+
+  // Leave balance from API
+  const rawAllocs = allocData?.data?.items ?? allocData?.data ?? allocData ?? [];
+  const allocList = Array.isArray(rawAllocs) ? rawAllocs : [];
+  const leaveBalance = [];
+  const leaveTypes = { 'Annual Leave': { color: C.teal }, 'Sick Leave': { color: C.danger }, 'Personal Leave': { color: C.accent } };
+  allocList.forEach(a => {
+    const type = a.leaveType || a.type || 'Annual Leave';
+    const total = a.totalDays || a.days || 0;
+    const used = a.usedDays || 0;
+    leaveBalance.push({ type, used, total, color: leaveTypes[type]?.color || C.teal });
+  });
+  // If no allocations, show empty state
+  if (leaveBalance.length === 0) {
+    Object.entries(leaveTypes).forEach(([type, { color }]) => leaveBalance.push({ type, used: 0, total: 0, color }));
+  }
+
+  // Dashboard stats for quick stats
+  const ds = dashData?.data || dashData || {};
+  const managedCount = ds.totalEmployees || 0;
+
+  // Activity log from audit logs API
+  const rawLogs = logsData?.data?.items ?? logsData?.data ?? logsData ?? [];
+  const activityLogs = (Array.isArray(rawLogs) ? rawLogs : []).slice(0, 10).map(l => ({
+    action: l.action || l.description || l.message || 'Activity',
+    time: l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—',
+    icon: l.action?.includes('leave') ? '🏖️' : l.action?.includes('payrun') ? '💰' : l.action?.includes('employee') ? '👤' : l.action?.includes('department') ? '🏢' : '📋',
+  }));
 
   const [edit,setEdit]=useState(false);
   const [tab,setTab]=useState(0);
   const [form,setForm]=useState(profileUser);
   const [pw,setPw]=useState({current:'',newPw:'',confirm:''});
+  const [pwMsg,setPwMsg]=useState('');
+  const [pwErr,setPwErr]=useState('');
+  const [isPwSaving,setIsPwSaving]=useState(false);
   const str=pwStrength(pw.newPw);
   const match=pw.newPw&&pw.confirm&&pw.newPw===pw.confirm;
 
-  // Sync form when profile loads
   useEffect(() => {
     if (p.firstName || p.name) setForm(profileUser);
   }, [p.firstName, p.name]);
@@ -81,9 +110,22 @@ export default function ProfileView(){
     } catch(e) { console.error('Save profile failed:', e); }
   };
 
-  const att={present:22,absent:2,leave:2,total:26};
-  const attPct=Math.round((att.present/att.total)*100);
-  const leaves=[{type:'Annual',used:6,total:18,color:C.teal},{type:'Sick',used:3,total:10,color:C.danger},{type:'Personal',used:2,total:5,color:C.accent}];
+  const handleChangePassword = async () => {
+    setPwMsg(''); setPwErr('');
+    if (!pw.current) return setPwErr('Current password is required.');
+    if (!pw.newPw || pw.newPw.length < 6) return setPwErr('New password must be at least 6 characters.');
+    if (pw.newPw !== pw.confirm) return setPwErr('Passwords do not match.');
+    setIsPwSaving(true);
+    try {
+      await authService.changePassword({ currentPassword: pw.current, newPassword: pw.newPw, confirmPassword: pw.confirm });
+      setPwMsg('Password updated successfully!');
+      setPw({ current: '', newPw: '', confirm: '' });
+    } catch (e) {
+      setPwErr(e?.response?.data?.message || e?.message || 'Failed to change password.');
+    } finally { setIsPwSaving(false); }
+  };
+
+  const currentMonthName = new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
   if (isLoading) return <LoadingSpinner message="Loading profile..." />;
   if (error) return <ErrorState message="Failed to load profile" onRetry={refetch} />;
@@ -92,13 +134,12 @@ export default function ProfileView(){
     <>
       <Styles/>
       <div style={{fontFamily:'Poppins,sans-serif',maxWidth:1100,margin:'0 auto'}}>
-
         {/* TOP PROFILE CARD */}
         <div className="pr-anim" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:18,overflow:'hidden',marginBottom:24}}>
           <div style={{height:6,background:`linear-gradient(90deg,${C.accent},${C.teal})`}}/>
           <div style={{padding:'24px 28px',display:'flex',alignItems:'center',gap:20,flexWrap:'wrap'}}>
             <div className="pr-avatar-wrap">
-              <div style={{width:80,height:80,borderRadius:'50%',background:`${C.accent}22`,border:`3px solid ${C.accent}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,fontWeight:700,color:C.accent}}>AU</div>
+              <div style={{width:80,height:80,borderRadius:'50%',background:`${C.accent}22`,border:`3px solid ${C.accent}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,fontWeight:700,color:C.accent}}>{userInitials}</div>
               <div className="pr-cam">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               </div>
@@ -118,8 +159,6 @@ export default function ProfileView(){
 
         {/* TWO COLUMNS */}
         <div className="pr-cols" style={{display:'flex',gap:24}}>
-
-          {/* LEFT */}
           <div className="pr-left" style={{flex:1,minWidth:0}}>
             <div style={{display:'flex',borderBottom:`1px solid ${C.border}`,marginBottom:20}}>
               {['Personal Info','Change Password','Activity Log'].map((t,i)=>(
@@ -136,13 +175,13 @@ export default function ProfileView(){
                 <div><label style={lb}>Date of Birth</label><input className="pr-fi" type="date" style={{...fi,colorScheme:'dark',opacity:edit?1:.7}} value={form.dob} readOnly={!edit} onChange={e=>setForm(f=>({...f,dob:e.target.value}))}/></div>
                 <div><label style={lb}>Gender</label>
                   <select className="pr-fi" style={{...fi,cursor:edit?'pointer':'default',opacity:edit?1:.7}} value={form.gender} disabled={!edit} onChange={e=>setForm(f=>({...f,gender:e.target.value}))}>
-                    {['Male','Female','Other'].map(g=><option key={g} value={g} style={{background:C.surface}}>{g}</option>)}
+                    <option value="">Select</option>{['Male','Female','Other'].map(g=><option key={g} value={g} style={{background:C.surface}}>{g}</option>)}
                   </select>
                 </div>
                 <div><label style={lb}>Department</label><input style={{...fi,opacity:.5}} value={form.department} readOnly/></div>
                 <div style={{gridColumn:'span 2'}}><label style={lb}>Address</label><textarea className="pr-fi" style={{...fi,minHeight:60,resize:'vertical',opacity:edit?1:.7}} value={form.address} readOnly={!edit} onChange={e=>setForm(f=>({...f,address:e.target.value}))}/></div>
                 <div><label style={lb}>Designation</label><input style={{...fi,opacity:.5}} value={form.designation} readOnly/></div>
-                <div><label style={lb}>Join Date</label><input style={{...fi,opacity:.5}} value={new Date(form.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})} readOnly/></div>
+                <div><label style={lb}>Join Date</label><input style={{...fi,opacity:.5}} value={form.joinDate ? new Date(form.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'} readOnly/></div>
                 <div><label style={lb}>Login ID</label><input style={{...fi,opacity:.5,fontFamily:'monospace'}} value={form.loginId} readOnly/></div>
               </div>
               {edit&&<div style={{marginTop:20,textAlign:'right'}}><button onClick={handleSaveProfile} disabled={isUpdatingMe} style={{background:C.teal,color:'#fff',border:'none',borderRadius:10,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:isUpdatingMe?0.6:1}}>{isUpdatingMe?'Saving...':'Save Changes'}</button></div>}
@@ -166,14 +205,17 @@ export default function ProfileView(){
                   {pw.confirm&&<div style={{fontSize:11,marginTop:6,color:match?C.teal:C.danger,fontWeight:500}}>{match?'✓ Passwords match':'✕ Passwords do not match'}</div>}
                 </div>
               </div>
-              <div style={{marginTop:20}}><button style={{background:C.teal,color:'#fff',border:'none',borderRadius:10,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Update Password</button></div>
+              {pwErr && <div style={{marginTop:12,padding:'8px 14px',borderRadius:10,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.25)',fontSize:12,color:'#EF4444',fontWeight:500}}>{pwErr}</div>}
+              {pwMsg && <div style={{marginTop:12,padding:'8px 14px',borderRadius:10,background:'rgba(20,184,166,0.1)',border:'1px solid rgba(20,184,166,0.25)',fontSize:12,color:C.teal,fontWeight:500}}>✓ {pwMsg}</div>}
+              <div style={{marginTop:20}}><button onClick={handleChangePassword} disabled={isPwSaving} style={{background:C.teal,color:'#fff',border:'none',borderRadius:10,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:isPwSaving?0.6:1}}>{isPwSaving?'Updating...':'Update Password'}</button></div>
             </div>}
 
             {/* ACTIVITY LOG */}
             {tab===2&&<div className="pr-anim" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
               <div style={{display:'flex',flexDirection:'column',gap:0}}>
-                {ACTIVITY.map((a,i)=>(
-                  <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:i<ACTIVITY.length-1?`1px solid ${C.border}`:'none'}}>
+                {activityLogs.length === 0 && <div style={{textAlign:'center',padding:30,color:C.muted,fontSize:13}}>No activity recorded yet</div>}
+                {activityLogs.map((a,i)=>(
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',borderBottom:i<activityLogs.length-1?`1px solid ${C.border}`:'none'}}>
                     <div style={{width:34,height:34,borderRadius:10,background:C.surfaceHover,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,flexShrink:0}}>{a.icon}</div>
                     <div style={{flex:1}}>
                       <div style={{fontSize:13,color:C.text,fontWeight:400}}>{a.action}</div>
@@ -189,7 +231,7 @@ export default function ProfileView(){
           <div style={{width:300,flexShrink:0,display:'flex',flexDirection:'column',gap:20}}>
             {/* Attendance */}
             <div className="pr-anim" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:16,padding:20,animationDelay:'.1s'}}>
-              <div style={{fontSize:14,fontWeight:600,color:C.text,marginBottom:16}}>Attendance — May 2025</div>
+              <div style={{fontSize:14,fontWeight:600,color:C.text,marginBottom:16}}>Attendance — {currentMonthName}</div>
               <div style={{display:'flex',justifyContent:'center',marginBottom:16}}>
                 <div style={{width:100,height:100,borderRadius:'50%',background:`conic-gradient(${C.teal} ${attPct*3.6}deg, ${C.surfaceHover} 0deg)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
                   <div style={{width:76,height:76,borderRadius:'50%',background:C.surface,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}}>
@@ -198,7 +240,7 @@ export default function ProfileView(){
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-                {[['Present',att.present,C.teal],['Absent',att.absent,C.danger],['Leave',att.leave,C.warning]].map(([l,v,c])=>(
+                {[['Present',presentCount,C.teal],['Absent',absentCount,C.danger],['Leave',leaveCount,C.warning]].map(([l,v,c])=>(
                   <div key={l} style={{textAlign:'center',background:C.bg,borderRadius:10,padding:'10px 6px'}}>
                     <div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div>
                     <div style={{fontSize:10,color:C.muted}}>{l}</div>
@@ -210,21 +252,21 @@ export default function ProfileView(){
             {/* Leave Balance */}
             <div className="pr-anim" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:16,padding:20,animationDelay:'.2s'}}>
               <div style={{fontSize:14,fontWeight:600,color:C.text,marginBottom:16}}>Leave Balance</div>
-              {leaves.map(l=>(
+              {leaveBalance.map(l=>(
                 <div key={l.type} style={{marginBottom:14}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
                     <span style={{fontSize:12,color:C.text,fontWeight:500}}>{l.type}</span>
-                    <span style={{fontSize:11,color:C.muted}}>{l.total-l.used}/{l.total} remaining</span>
+                    <span style={{fontSize:11,color:C.muted}}>{Math.max(0,l.total-l.used)}/{l.total} remaining</span>
                   </div>
-                  <ProgressBar value={l.total-l.used} max={l.total} color={l.color}/>
+                  <ProgressBar value={Math.max(0,l.total-l.used)} max={Math.max(1,l.total)} color={l.color}/>
                 </div>
               ))}
             </div>
 
-            {/* Quick Stats (admin) */}
+            {/* Quick Stats */}
             <div className="pr-anim" style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:16,padding:20,animationDelay:'.3s'}}>
               <div style={{fontSize:14,fontWeight:600,color:C.text,marginBottom:16}}>Quick Stats</div>
-              {[['Employees Managed',124,C.teal],['Reports Generated',38,C.accent]].map(([l,v,c])=>(
+              {[['Employees Managed',managedCount,C.teal],['Present Today',ds.presentToday||0,C.accent]].map(([l,v,c])=>(
                 <div key={l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:`1px solid ${C.border}`}}>
                   <span style={{fontSize:12,color:C.muted}}>{l}</span>
                   <span style={{fontSize:18,fontWeight:700,color:c}}>{v}</span>

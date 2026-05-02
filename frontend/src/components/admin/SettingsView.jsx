@@ -1,212 +1,224 @@
 import { useState, useEffect } from 'react';
-import { useSettingsUsers, useSettingsCompany, useSettingsMutations, useAuth } from '../../hooks';
+import { useSettingsUsers, useSettingsCompany, useSettingsMutations } from '../../hooks';
+import { authService } from '../../services';
 import { LoadingSpinner, ErrorState } from './shared';
 
-const C = { bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24', accent: '#7C3AED', accentLight: 'rgba(124,58,237,0.15)', teal: '#14B8A6', tealLight: 'rgba(20,184,166,0.15)', cyan: '#06B6D4', warning: '#F59E0B', danger: '#EF4444', text: '#F1F0FF', muted: '#8B8A9B', border: '#2E2E3E' };
+const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
+const fi={background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',width:'100%'};
+const lb={fontSize:11,color:C.muted,display:'block',marginBottom:4,fontWeight:500};
 
-const SECTIONS = ['Company Info', 'Role Management', 'Password & Security', 'Notifications', 'Payroll Config'];
-const ICONS = ['🏢', '👥', '🔒', '🔔', '💰'];
-const ROLE_OPTS = ['Employee', 'HR Officer', 'Payroll Officer'];
+const ROLE_OPTS=['admin','hr_officer','payroll_officer','employee'];
+const ROLE_COLORS={admin:C.accent,hr_officer:C.teal,payroll_officer:C.cyan,employee:C.muted};
 
-const fi = { background: C.surfaceHover, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 14px', color: C.text, fontSize: 13, fontFamily: 'Poppins,sans-serif', outline: 'none', width: '100%', transition: 'border .2s' };
-const label = { fontSize: 11, color: C.muted, display: 'block', marginBottom: 5, fontWeight: 500 };
-const saveBtn = { background: C.teal, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Poppins,sans-serif', transition: 'all .25s' };
-
-const Styles = () => <style dangerouslySetInnerHTML={{
-  __html: `
+const Styles=()=><style dangerouslySetInnerHTML={{__html:`
   @keyframes stFade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-  .st-section{animation:stFade .35s ease-out both}
+  .st-anim{animation:stFade .4s ease-out both}
+  .st-tab{background:transparent;border:none;padding:10px 20px;font-size:13px;font-weight:500;cursor:pointer;font-family:Poppins,sans-serif;color:${C.muted};border-bottom:2px solid transparent;transition:all .2s}
+  .st-tab.active{color:${C.teal};border-bottom-color:${C.teal}}
+  .st-row:hover{background:${C.surfaceHover}!important}
   .st-fi:focus{border-color:${C.teal}!important}
-  .st-toggle{position:relative;width:44px;height:24px;border-radius:12px;cursor:pointer;transition:background .25s;border:none;padding:0}
-  .st-toggle::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .25s}
-  .st-toggle.on{background:${C.teal}}.st-toggle.on::after{transform:translateX(20px)}
-  .st-toggle.off{background:${C.border}}
-  .st-menuitem{display:flex;align-items:center;gap:10;padding:12px 18px;cursor:pointer;transition:all .2s;border-left:3px solid transparent;font-size:13px;color:${C.muted};font-family:Poppins,sans-serif;border-radius:0 8px 8px 0;margin-bottom:2px}
-  .st-menuitem:hover{background:${C.surfaceHover};color:${C.text}}
-  .st-menuitem.active{border-left-color:${C.teal};color:${C.teal};background:${C.tealLight}}
-  @media(max-width:767px){.st-wrap{flex-direction:column!important}.st-menu{width:100%!important;flex-direction:row!important;overflow-x:auto;gap:0!important}.st-menuitem{white-space:nowrap;border-left:none!important;border-bottom:2px solid transparent;border-radius:0!important;padding:10px 14px!important}.st-menuitem.active{border-bottom-color:${C.teal}!important}}
-`}} />;
+  .st-btn{border:none;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer;font-family:Poppins,sans-serif;transition:all .2s}.st-btn:hover{transform:translateY(-1px)}
+  @media(max-width:767px){.st-grid{grid-template-columns:1fr!important}}
+`}}/>;
 
-const Toggle = ({ on, onToggle, label: lb }) => (
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: `1px solid ${C.border}` }}>
-    <span style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{lb}</span>
-    <button className={`st-toggle ${on ? 'on' : 'off'}`} onClick={onToggle} />
-  </div>
-);
-
-export default function SettingsView() {
-  const { data: usersData, isLoading: usersLoading } = useSettingsUsers();
-  const { data: companyData, isLoading: companyLoading } = useSettingsCompany();
+export default function SettingsView(){
+  const [tab,setTab]=useState(0);
+  const [search,setSearch]=useState('');
+  const [page,setPage]=useState(1);
+  const { data:usersData, isLoading, error, refetch } = useSettingsUsers({ search, page, limit: 10 });
+  const { data:companyData, isLoading:compL } = useSettingsCompany();
   const { updateUserRole, updateCompany, isUpdatingRole, isUpdatingCompany } = useSettingsMutations();
 
-  const USERS = (Array.isArray(usersData?.data) ? usersData.data : (Array.isArray(usersData) ? usersData : [])).map(u => ({
-    id: u._id || u.id,
-    name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || 'Unknown',
-    role: u.role || 'Employee',
+  // Users list — properly extract paginated items
+  const rawUsers = usersData?.data?.items ?? usersData?.data ?? usersData ?? [];
+  const users = (Array.isArray(rawUsers) ? rawUsers : []).map(u => ({
+    id: u.id, name: u.name || '—', loginId: u.loginId || u.login_id || '—', email: u.email || '—', role: u.role || 'employee', isActive: u.isActive ?? u.is_active ?? true,
   }));
+  const pagination = usersData?.data?.pagination || {};
+  const totalPages = pagination.totalPages || 1;
 
-  const comp = companyData?.data || companyData || {};
+  // Company info
+  const ci = companyData?.data || companyData || {};
+  const [compForm, setCompForm] = useState({ name: '', logoUrl: '', officeLatitude: '', officeLongitude: '' });
+  const [compMsg, setCompMsg] = useState('');
+  const [compErr, setCompErr] = useState('');
 
-  const [sec, setSec] = useState(0);
-  const [company, setCompany] = useState({ name: '', address: '', email: '', phone: '' });
-  const [roles, setRoles] = useState([]);
+  useEffect(() => {
+    if (ci.name) setCompForm({ name: ci.name || '', logoUrl: ci.logoUrl || '', officeLatitude: ci.officeLatitude ?? '', officeLongitude: ci.officeLongitude ?? '' });
+  }, [ci.name, ci.logoUrl, ci.officeLatitude, ci.officeLongitude]);
+
+  // Password state
   const [pw, setPw] = useState({ current: '', newPw: '', confirm: '' });
-  const [resetEmp, setResetEmp] = useState('');
-  const [tfa, setTfa] = useState(false);
-  const [notifs, setNotifs] = useState({ leave: true, payroll: true, newEmp: false, attendance: true });
-  const [payroll, setPayroll] = useState({ pf: '12', tax: '200', cycle: 'monthly', day: '15' });
+  const [pwMsg, setPwMsg] = useState('');
+  const [pwErr, setPwErr] = useState('');
+  const [isPwSaving, setIsPwSaving] = useState(false);
 
-  // Sync company data from API
-  useEffect(() => {
-    if (comp.name) setCompany({ name: comp.name || '', address: comp.address || '', email: comp.email || '', phone: comp.phone || '' });
-  }, [comp.name]);
+  // Preferences (localStorage only — no backend endpoint)
+  const [prefs, setPrefs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('admin_prefs') || '{}'); } catch { return {}; }
+  });
+  const [prefMsg, setPrefMsg] = useState('');
 
-  // Sync roles from API
-  useEffect(() => {
-    if (USERS.length && roles.length === 0) setRoles(USERS.map(u => u.role));
-  }, [USERS.length]);
+  const handleRoleChange = async (userId, newRole) => {
+    try { await updateUserRole({ userId, data: { role: newRole } }); } catch (e) { console.error('Role update failed:', e); }
+  };
 
   const handleSaveCompany = async () => {
-    try { await updateCompany(company); } catch (e) { console.error('Save company failed:', e); }
-  };
-  const handleSaveRole = async (i) => {
-    try { await updateUserRole({ userId: USERS[i].id, data: { role: roles[i] } }); } catch (e) { console.error('Role update failed:', e); }
+    setCompMsg(''); setCompErr('');
+    try {
+      const body = { name: compForm.name };
+      if (compForm.officeLatitude !== '' && compForm.officeLongitude !== '') {
+        body.officeLatitude = Number(compForm.officeLatitude);
+        body.officeLongitude = Number(compForm.officeLongitude);
+      }
+      if (compForm.logoUrl) body.logoUrl = compForm.logoUrl;
+      await updateCompany(body);
+      setCompMsg('Company info updated!');
+      setTimeout(() => setCompMsg(''), 3000);
+    } catch (e) { setCompErr(e?.response?.data?.message || e?.message || 'Failed to update company.'); }
   };
 
-  if (usersLoading || companyLoading) return <LoadingSpinner message="Loading settings..." />;
+  const handleChangePassword = async () => {
+    setPwMsg(''); setPwErr('');
+    if (!pw.current) return setPwErr('Current password required.');
+    if (!pw.newPw || pw.newPw.length < 6) return setPwErr('New password must be at least 6 chars.');
+    if (pw.newPw !== pw.confirm) return setPwErr('Passwords do not match.');
+    setIsPwSaving(true);
+    try {
+      await authService.changePassword({ currentPassword: pw.current, newPassword: pw.newPw, confirmPassword: pw.confirm });
+      setPwMsg('Password updated!');
+      setPw({ current: '', newPw: '', confirm: '' });
+    } catch (e) { setPwErr(e?.response?.data?.message || e?.message || 'Failed to change password.'); }
+    finally { setIsPwSaving(false); }
+  };
+
+  const handleSavePrefs = () => {
+    localStorage.setItem('admin_prefs', JSON.stringify(prefs));
+    setPrefMsg('Preferences saved!');
+    setTimeout(() => setPrefMsg(''), 3000);
+  };
+
+  const tabs = ['User Management', 'Company Info', 'Security', 'Preferences'];
+
+  if (isLoading && tab === 0) return <LoadingSpinner message="Loading settings..." />;
+  if (error && tab === 0) return <ErrorState message="Failed to load settings" onRetry={refetch} />;
+
+  const th = { padding: '10px 12px', fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: `1px solid ${C.border}`, textAlign: 'left', fontFamily: 'Poppins' };
+  const td = { padding: '10px 12px', fontSize: 13, color: C.text, borderBottom: `1px solid ${C.border}`, fontFamily: 'Poppins' };
 
   return (
     <>
       <Styles />
       <div style={{ fontFamily: 'Poppins,sans-serif', maxWidth: 1100, margin: '0 auto' }}>
-        <h2 style={{ fontSize: 22, fontWeight: 600, color: C.text, margin: '0 0 4px' }}>Settings</h2>
-        <p style={{ fontSize: 13, color: C.muted, fontWeight: 300, marginBottom: 24 }}>Configure your HRMS preferences</p>
+        <div style={{ marginBottom: 20 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 600, color: C.text, margin: 0 }}>Settings</h2>
+          <p style={{ fontSize: 13, color: C.muted, fontWeight: 300, marginTop: 4 }}>Manage users, company info, and preferences</p>
+        </div>
 
-        <div className="st-wrap" style={{ display: 'flex', gap: 24 }}>
-          {/* SIDEBAR MENU */}
-          <div className="st-menu" style={{ width: 220, flexShrink: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '12px 0', height: 'fit-content', display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {SECTIONS.map((s, i) => (
-              <div key={s} className={`st-menuitem ${sec === i ? 'active' : ''}`} onClick={() => setSec(i)}>
-                <span>{ICONS[i]}</span><span>{s}</span>
+        <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, marginBottom: 24 }}>
+          {tabs.map((t, i) => <button key={t} className={`st-tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
+        </div>
+
+        {/* ═══ USER MANAGEMENT ═══ */}
+        {tab === 0 && <div className="st-anim">
+          <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+            <input className="st-fi" placeholder="Search users..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+              style={{ ...fi, maxWidth: 300 }} />
+          </div>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, overflow: 'auto', marginBottom: 16 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+              <thead><tr>
+                {['Name', 'Login ID', 'Email', 'Role', 'Status'].map(h => <th key={h} style={th}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {users.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', padding: 40, color: C.muted }}>No users found</td></tr>}
+                {users.map((u, i) => (
+                  <tr key={u.id} className="st-row" style={{ background: i % 2 ? C.surfaceHover : 'transparent', transition: 'background .15s' }}>
+                    <td style={{ ...td, fontWeight: 500 }}>{u.name}</td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, color: C.muted }}>{u.loginId}</td>
+                    <td style={{ ...td, fontSize: 12, color: C.muted }}>{u.email}</td>
+                    <td style={td}>
+                      <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)} disabled={isUpdatingRole}
+                        style={{ background: `${ROLE_COLORS[u.role] || C.muted}18`, border: `1px solid ${ROLE_COLORS[u.role] || C.muted}40`, borderRadius: 8, padding: '4px 10px', color: ROLE_COLORS[u.role] || C.muted, fontSize: 11, fontWeight: 600, fontFamily: 'Poppins', outline: 'none', cursor: 'pointer' }}>
+                        {ROLE_OPTS.map(r => <option key={r} value={r} style={{ background: C.surface, color: C.text }}>{r.replace('_', ' ')}</option>)}
+                      </select>
+                    </td>
+                    <td style={td}>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: u.isActive ? C.tealLight : 'rgba(239,68,68,.15)', color: u.isActive ? C.teal : C.danger }}>{u.isActive ? 'Active' : 'Inactive'}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {totalPages > 1 && <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button key={i} onClick={() => setPage(i + 1)} style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${page === i + 1 ? C.teal : C.border}`, background: page === i + 1 ? C.teal : 'transparent', color: page === i + 1 ? '#fff' : C.muted, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Poppins' }}>{i + 1}</button>
+            ))}
+          </div>}
+        </div>}
+
+        {/* ═══ COMPANY INFO ═══ */}
+        {tab === 1 && <div className="st-anim" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24, maxWidth: 600 }}>
+          {compL ? <LoadingSpinner message="Loading company..." /> : <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div><label style={lb}>Company Name</label><input className="st-fi" style={fi} value={compForm.name} onChange={e => setCompForm(f => ({ ...f, name: e.target.value }))} /></div>
+              <div><label style={lb}>Logo URL</label><input className="st-fi" style={fi} value={compForm.logoUrl} onChange={e => setCompForm(f => ({ ...f, logoUrl: e.target.value }))} placeholder="https://..." /></div>
+              <div className="st-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div><label style={lb}>Office Latitude</label><input className="st-fi" type="number" step="any" style={fi} value={compForm.officeLatitude} onChange={e => setCompForm(f => ({ ...f, officeLatitude: e.target.value }))} placeholder="e.g. 12.9716" /></div>
+                <div><label style={lb}>Office Longitude</label><input className="st-fi" type="number" step="any" style={fi} value={compForm.officeLongitude} onChange={e => setCompForm(f => ({ ...f, officeLongitude: e.target.value }))} placeholder="e.g. 77.5946" /></div>
+              </div>
+            </div>
+            {compErr && <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 10, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', fontSize: 12, color: '#EF4444' }}>{compErr}</div>}
+            {compMsg && <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 10, background: 'rgba(20,184,166,.1)', border: '1px solid rgba(20,184,166,.25)', fontSize: 12, color: C.teal }}>✓ {compMsg}</div>}
+            <div style={{ marginTop: 20 }}>
+              <button onClick={handleSaveCompany} disabled={isUpdatingCompany} className="st-btn" style={{ background: C.teal, color: '#fff', padding: '10px 22px', fontSize: 13, opacity: isUpdatingCompany ? 0.6 : 1 }}>{isUpdatingCompany ? 'Saving...' : 'Save Company Info'}</button>
+            </div>
+          </>}
+        </div>}
+
+        {/* ═══ SECURITY ═══ */}
+        {tab === 2 && <div className="st-anim" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24, maxWidth: 450 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 16px' }}>Change Admin Password</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div><label style={lb}>Current Password</label><input className="st-fi" type="password" style={fi} value={pw.current} onChange={e => setPw(p => ({ ...p, current: e.target.value }))} placeholder="••••••••" /></div>
+            <div><label style={lb}>New Password</label><input className="st-fi" type="password" style={fi} value={pw.newPw} onChange={e => setPw(p => ({ ...p, newPw: e.target.value }))} placeholder="••••••••" /></div>
+            <div><label style={lb}>Confirm New Password</label><input className="st-fi" type="password" style={fi} value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} placeholder="••••••••" />
+              {pw.confirm && <div style={{ fontSize: 11, marginTop: 6, color: pw.newPw === pw.confirm ? C.teal : C.danger, fontWeight: 500 }}>{pw.newPw === pw.confirm ? '✓ Passwords match' : '✕ Passwords do not match'}</div>}
+            </div>
+          </div>
+          {pwErr && <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 10, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', fontSize: 12, color: '#EF4444' }}>{pwErr}</div>}
+          {pwMsg && <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 10, background: 'rgba(20,184,166,.1)', border: '1px solid rgba(20,184,166,.25)', fontSize: 12, color: C.teal }}>✓ {pwMsg}</div>}
+          <div style={{ marginTop: 20 }}>
+            <button onClick={handleChangePassword} disabled={isPwSaving} className="st-btn" style={{ background: C.teal, color: '#fff', padding: '10px 22px', fontSize: 13, opacity: isPwSaving ? 0.6 : 1 }}>{isPwSaving ? 'Updating...' : 'Update Password'}</button>
+          </div>
+        </div>}
+
+        {/* ═══ PREFERENCES ═══ */}
+        {tab === 3 && <div className="st-anim" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 24, maxWidth: 500 }}>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 16px' }}>Notification Preferences</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {[['emailNotifications', 'Email Notifications', 'Receive email alerts for important events'],
+              ['leaveAlerts', 'Leave Request Alerts', 'Get notified when leave requests are submitted'],
+              ['payrollReminders', 'Payroll Reminders', 'Monthly payroll processing reminders'],
+              ['attendanceAlerts', 'Attendance Alerts', 'Daily attendance summary notifications'],
+            ].map(([key, label, desc]) => (
+              <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: `1px solid ${C.border}` }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{label}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{desc}</div>
+                </div>
+                <div onClick={() => setPrefs(p => ({ ...p, [key]: !p[key] }))} style={{ width: 44, height: 24, borderRadius: 12, background: prefs[key] ? C.teal : C.surfaceHover, cursor: 'pointer', position: 'relative', transition: 'background .2s', border: `1px solid ${prefs[key] ? C.teal : C.border}` }}>
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#fff', position: 'absolute', top: 2, left: prefs[key] ? 22 : 2, transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.3)' }} />
+                </div>
               </div>
             ))}
           </div>
-
-          {/* CONTENT */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-
-            {/* COMPANY INFO */}
-            {sec === 0 && <div className="st-section" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 20px' }}>Company Information</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
-                <div style={{ width: 72, height: 72, borderRadius: '50%', background: `${C.teal}22`, border: `2px solid ${C.teal}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: C.teal, flexShrink: 0 }}>EP</div>
-                <div>
-                  <div style={{ fontSize: 13, color: C.text, fontWeight: 500, marginBottom: 6 }}>Company Logo</div>
-                  <button style={{ background: C.surfaceHover, border: `1px solid ${C.border}`, borderRadius: 8, padding: '6px 14px', color: C.teal, fontSize: 12, cursor: 'pointer', fontFamily: 'Poppins,sans-serif' }}>Upload Logo</button>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div style={{ gridColumn: 'span 2' }}><label style={label}>Company Name</label><input className="st-fi" style={fi} value={company.name} onChange={e => setCompany(c => ({ ...c, name: e.target.value }))} /></div>
-                <div style={{ gridColumn: 'span 2' }}><label style={label}>Address</label><textarea className="st-fi" style={{ ...fi, minHeight: 70, resize: 'vertical' }} value={company.address} onChange={e => setCompany(c => ({ ...c, address: e.target.value }))} /></div>
-                <div><label style={label}>Email</label><input className="st-fi" style={fi} value={company.email} onChange={e => setCompany(c => ({ ...c, email: e.target.value }))} /></div>
-                <div><label style={label}>Phone</label><input className="st-fi" style={fi} value={company.phone} onChange={e => setCompany(c => ({ ...c, phone: e.target.value }))} /></div>
-              </div>
-              <div style={{ marginTop: 24, textAlign: 'right' }}><button onClick={handleSaveCompany} disabled={isUpdatingCompany} style={{ ...saveBtn, opacity: isUpdatingCompany ? 0.6 : 1 }}>{isUpdatingCompany ? 'Saving...' : 'Save Changes'}</button></div>
-            </div>}
-
-            {/* ROLE MANAGEMENT */}
-            {sec === 1 && <div className="st-section" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 20px' }}>Role Management</h3>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr>
-                  {['Employee', 'Current Role', 'Change Role', ''].map(h => <th key={h} style={{ padding: '10px 12px', fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: `1px solid ${C.border}`, textAlign: 'left' }}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {USERS.map((u, i) => (
-                    <tr key={u.name} style={{ background: i % 2 ? C.surfaceHover : 'transparent' }}>
-                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: C.text, borderBottom: `1px solid ${C.border}` }}>{u.name}</td>
-                      <td style={{ padding: '10px 12px', fontSize: 12, color: C.muted, borderBottom: `1px solid ${C.border}` }}>{u.role}</td>
-                      <td style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}` }}>
-                        <select value={roles[i]} onChange={e => { const r = [...roles]; r[i] = e.target.value; setRoles(r); }} style={{ ...fi, width: 'auto', minWidth: 150, cursor: 'pointer', padding: '7px 12px' }}>
-                          {ROLE_OPTS.map(r => <option key={r} value={r} style={{ background: C.surface }}>{r}</option>)}
-                        </select>
-                      </td>
-                      <td style={{ padding: '10px 12px', borderBottom: `1px solid ${C.border}` }}>
-                        {roles[i] !== u.role && <button onClick={() => handleSaveRole(i)} disabled={isUpdatingRole} style={{ background: C.teal, color: '#fff', border: 'none', borderRadius: 8, padding: '5px 14px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'Poppins,sans-serif', opacity: isUpdatingRole ? 0.6 : 1 }}>{isUpdatingRole ? 'Saving...' : 'Save'}</button>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>}
-
-            {/* PASSWORD & SECURITY */}
-            {sec === 2 && <div className="st-section" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 20px' }}>Reset Employee Password</h3>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: 200 }}><label style={label}>Select Employee</label>
-                    <select className="st-fi" value={resetEmp} onChange={e => setResetEmp(e.target.value)} style={{ ...fi, cursor: 'pointer' }}>
-                      <option value="" style={{ background: C.surface }}>Choose employee</option>
-                      {USERS.map(u => <option key={u.name} value={u.name} style={{ background: C.surface }}>{u.name}</option>)}
-                    </select>
-                  </div>
-                  <button style={{ ...saveBtn, background: C.warning }}>Send Reset Link</button>
-                </div>
-              </div>
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 20px' }}>Change Your Password</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 400 }}>
-                  <div><label style={label}>Current Password</label><input className="st-fi" type="password" style={fi} value={pw.current} onChange={e => setPw(p => ({ ...p, current: e.target.value }))} placeholder="••••••••" /></div>
-                  <div><label style={label}>New Password</label><input className="st-fi" type="password" style={fi} value={pw.newPw} onChange={e => setPw(p => ({ ...p, newPw: e.target.value }))} placeholder="••••••••" /></div>
-                  <div><label style={label}>Confirm Password</label><input className="st-fi" type="password" style={fi} value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} placeholder="••••••••" /></div>
-                </div>
-                <div style={{ marginTop: 20 }}><button style={saveBtn}>Update Password</button></div>
-              </div>
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
-                <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 12px' }}>Two-Factor Authentication</h3>
-                <Toggle on={tfa} onToggle={() => setTfa(!tfa)} label="Enable 2FA for admin login" />
-                <p style={{ fontSize: 12, color: C.muted, fontWeight: 300, marginTop: 8 }}>Adds an extra layer of security by requiring a verification code when logging in.</p>
-              </div>
-            </div>}
-
-            {/* NOTIFICATIONS */}
-            {sec === 3 && <div className="st-section" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 8px' }}>Notification Preferences</h3>
-              <p style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>Choose which notifications you want to receive</p>
-              <Toggle on={notifs.leave} onToggle={() => setNotifs(n => ({ ...n, leave: !n.leave }))} label="Leave request notifications" />
-              <Toggle on={notifs.payroll} onToggle={() => setNotifs(n => ({ ...n, payroll: !n.payroll }))} label="Payroll processed notifications" />
-              <Toggle on={notifs.newEmp} onToggle={() => setNotifs(n => ({ ...n, newEmp: !n.newEmp }))} label="New employee added" />
-              <Toggle on={notifs.attendance} onToggle={() => setNotifs(n => ({ ...n, attendance: !n.attendance }))} label="Attendance alerts" />
-              <div style={{ marginTop: 24, textAlign: 'right' }}><button style={saveBtn}>Save Preferences</button></div>
-            </div>}
-
-            {/* PAYROLL CONFIG */}
-            {sec === 4 && <div className="st-section" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 16, padding: 28 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 20px' }}>Payroll Configuration</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxWidth: 500 }}>
-                <div><label style={label}>PF Rate (%)</label><input className="st-fi" type="number" style={fi} value={payroll.pf} onChange={e => setPayroll(p => ({ ...p, pf: e.target.value }))} /></div>
-                <div><label style={label}>Professional Tax (₹)</label><input className="st-fi" type="number" style={fi} value={payroll.tax} onChange={e => setPayroll(p => ({ ...p, tax: e.target.value }))} /></div>
-                <div style={{ gridColumn: 'span 2' }}>
-                  <label style={label}>Pay Cycle</label>
-                  <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
-                    {['monthly', 'biweekly'].map(v => (
-                      <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: payroll.cycle === v ? C.teal : C.muted }}>
-                        <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${payroll.cycle === v ? C.teal : C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setPayroll(p => ({ ...p, cycle: v }))}>
-                          {payroll.cycle === v && <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.teal }} />}
-                        </div>
-                        {v === 'monthly' ? 'Monthly' : 'Bi-weekly'}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div><label style={label}>Processing Day</label><input className="st-fi" type="number" style={fi} value={payroll.day} onChange={e => setPayroll(p => ({ ...p, day: e.target.value }))} /><span style={{ fontSize: 11, color: C.muted, marginTop: 4, display: 'block' }}>{payroll.day}th of every month</span></div>
-              </div>
-              <div style={{ marginTop: 24 }}><button style={saveBtn}>Save Configuration</button></div>
-            </div>}
-
+          {prefMsg && <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 10, background: 'rgba(20,184,166,.1)', border: '1px solid rgba(20,184,166,.25)', fontSize: 12, color: C.teal }}>✓ {prefMsg}</div>}
+          <div style={{ marginTop: 20 }}>
+            <button onClick={handleSavePrefs} className="st-btn" style={{ background: C.teal, color: '#fff', padding: '10px 22px', fontSize: 13 }}>Save Preferences</button>
           </div>
-        </div>
+        </div>}
       </div>
     </>
   );
