@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { C } from './layoutConfig.jsx';
 import { Sidebar } from './Sidebar';
 import { Navbar } from './Navbar';
@@ -53,11 +54,22 @@ export default function MainLayout({
   children,
   pageTitle = 'Dashboard',
   notifCount = 0,
-  onLogout = () => {},
+  onLogout,
 }) {
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  const handleLogout = useCallback(() => {
+    if (onLogout) {
+      onLogout();
+    } else {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    }
+  }, [onLogout, navigate]);
 
   // Load Poppins font
   useEffect(() => {
@@ -101,7 +113,7 @@ export default function MainLayout({
         role={role}
         userName={userName}
         userInitials={userInitials}
-        onLogout={onLogout}
+        onLogout={handleLogout}
         isCollapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed(c => !c)}
         isMobileOpen={isMobileOpen}
@@ -114,7 +126,7 @@ export default function MainLayout({
         userInitials={userInitials}
         role={role}
         notifCount={notifCount}
-        onLogout={onLogout}
+        onLogout={handleLogout}
         onToggleSidebar={handleToggleSidebar}
         sidebarWidth={sidebarWidth}
       />

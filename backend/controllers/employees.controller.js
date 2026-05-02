@@ -118,7 +118,7 @@ export async function createEmployee(req, res) {
 			return res.status(404).json(errorResponse("Company not found"));
 		}
 
-		const plain = Math.random().toString(36).slice(-10);
+		const plain = "samadhan";
 		const password_hash = await bcrypt.hash(plain, 10);
 
 		const tempLogin = `TMP-${Date.now()}`;

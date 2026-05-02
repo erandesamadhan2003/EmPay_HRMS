@@ -1,10 +1,18 @@
-﻿const C = { accent: '#14B8A6', text: '#F0FDFA', muted: '#8B8A9B', surface: '#13131A', border: '#2E2E3E' };
+import MainLayout from '../../components/layouts/MainLayout';
+
+const C = { text: '#F1F0FF', muted: '#8B8A9B' };
 
 export default function EmployeeProfile() {
+  const stored = JSON.parse(localStorage.getItem('user') || '{}');
+  const userName = stored.name || 'Employee';
+  const userInitials = userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
   return (
-    <div style={{ fontFamily: 'Poppins, sans-serif' }}>
-      <h2 style={{ fontSize: 28, fontWeight: 700, color: C.text, marginBottom: 8 }}>Profile</h2>
-      <p style={{ fontSize: 14, color: C.muted, fontWeight: 300 }}>This page is under construction.</p>
-    </div>
+    <MainLayout role="employee" pageTitle="Profile" userName={userName} userInitials={userInitials}>
+      <div style={{ fontFamily: 'Poppins, sans-serif' }}>
+        <h2 style={{ fontSize: 28, fontWeight: 700, color: C.text, marginBottom: 8 }}>My Profile</h2>
+        <p style={{ fontSize: 14, color: C.muted, fontWeight: 300 }}>This page is under construction.</p>
+      </div>
+    </MainLayout>
   );
 }
