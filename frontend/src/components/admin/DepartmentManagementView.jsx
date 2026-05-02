@@ -37,8 +37,8 @@ export default function DepartmentManagementView() {
   const { data: empData } = useEmployees();
   const { createDepartment, updateDepartment, deleteDepartment, isCreating, isUpdating, isDeleting } = useDepartmentMutations();
 
-  const rawDepts = deptData?.data || deptData || [];
-  const DEPTS = rawDepts.map(d => ({
+  const rawDepts = deptData?.data?.items || deptData?.items || deptData?.data || deptData || [];
+  const DEPTS = (Array.isArray(rawDepts) ? rawDepts : []).map(d => ({
     id: d._id || d.id,
     name: d.name || 'Unknown',
     headName: d.head?.firstName ? `${d.head.firstName} ${d.head.lastName||''}`.trim() : (d.headName || '—'),
@@ -47,7 +47,8 @@ export default function DepartmentManagementView() {
     description: d.description || '',
   }));
 
-  const employees = (empData?.data || empData || []).map(e => `${e.firstName||''} ${e.lastName||''}`.trim() || e.name).filter(Boolean);
+  const rawEmps = empData?.data?.items || empData?.items || empData?.data || empData || [];
+  const employees = (Array.isArray(rawEmps) ? rawEmps : []).map(e => `${e.firstName||''} ${e.lastName||''}`.trim() || e.name).filter(Boolean);
 
   const [modal, setModal] = useState(null);
   const [modalDept, setModalDept] = useState(null);

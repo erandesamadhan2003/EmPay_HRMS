@@ -2,8 +2,9 @@ import { createBrowserRouter } from "react-router-dom";
 
 // Auth
 import LandingPage from "../pages/auth/LandingPage";
-import LoginPage from "../pages/auth/LoginPage";
-import CreateEmployeePage from "../pages/auth/CreateEmployeePage";
+import LoginPage from "../pages/auth/Login"; // Fixed: import the actual Login component instead of the placeholder
+import CreateEmployeePage from "../pages/auth/Register"; // Fixed: import the actual Register component instead of the placeholder
+import ChangePassword from "../pages/auth/ChangePassword";
 
 // Admin
 import AdminDashboard from "../pages/admin/Dashboard";
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
   { path: "/", element: <LandingPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <CreateEmployeePage /> },
+  { path: "/change-password", element: <ChangePassword /> },
 
   // Admin
   { path: "/admin/dashboard", element: <AdminDashboard /> },

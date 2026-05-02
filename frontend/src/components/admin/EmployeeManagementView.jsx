@@ -55,8 +55,8 @@ export default function EmployeeManagementView() {
   const { createEmployee, updateEmployee, deleteEmployee, isCreating, isUpdating, isDeleting } = useEmployeeMutations();
 
   // Map API response to component format
-  const rawEmps = empData?.data || empData || [];
-  const EMPLOYEES = rawEmps.map(e => ({
+  const rawEmps = empData?.data?.items || empData?.items || empData?.data || empData || [];
+  const EMPLOYEES = (Array.isArray(rawEmps) ? rawEmps : []).map(e => ({
     id: e._id || e.id,
     loginId: e.loginId || e.employeeId || `EMP-${e._id?.slice(-4) || '0000'}`,
     name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name || 'Unknown',
@@ -70,7 +70,8 @@ export default function EmployeeManagementView() {
   }));
 
   // Available departments from API
-  const apiDepts = (deptData?.data || deptData || []).map(d => d.name);
+  const rawDepts = deptData?.data?.items || deptData?.items || deptData?.data || deptData || [];
+  const apiDepts = (Array.isArray(rawDepts) ? rawDepts : []).map(d => d.name);
 
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');

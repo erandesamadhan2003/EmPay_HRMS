@@ -34,8 +34,8 @@ export default function LeaveManagementView(){
   const { approveRequest, rejectRequest, isApproving, isRejecting } = useTimeOffRequestMutations();
 
   // Map API response
-  const rawReqs = reqData?.data || reqData || [];
-  const leaves = rawReqs.map(l => ({
+  const rawReqs = reqData?.data?.items || reqData?.items || reqData?.data || reqData || [];
+  const leaves = (Array.isArray(rawReqs) ? rawReqs : []).map(l => ({
     id: l._id || l.id,
     employeeName: l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName||''}`.trim() : (l.employeeName || 'Employee'),
     employeeId: l.employee?.employeeId || l.employeeId || '—',
@@ -160,7 +160,7 @@ export default function LeaveManagementView(){
             <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Employee</label>
               <select value={allocEmp} onChange={e=>setAllocEmp(e.target.value)} style={{background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'9px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',minWidth:180}}>
                 <option value="" style={{background:C.surface}}>Select employee</option>
-                {ALLOCATIONS.map(a=><option key={a.emp} value={a.emp} style={{background:C.surface}}>{a.emp}</option>)}
+                {ALLOCATIONS_FB.map(a=><option key={a.emp} value={a.emp} style={{background:C.surface}}>{a.emp}</option>)}
               </select>
             </div>
             <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Leave Type</label>
@@ -182,7 +182,7 @@ export default function LeaveManagementView(){
                 ))}
               </tr></thead>
               <tbody>
-                {ALLOCATIONS.map((a,i)=>(
+                {ALLOCATIONS_FB.map((a,i)=>(
                   <tr key={a.emp} style={{background:i%2?C.surfaceHover:'transparent'}}>
                     <td style={{padding:'10px 12px',fontSize:13,fontWeight:500,color:C.text}}>{a.emp}</td>
                     <td style={{padding:'10px 12px',fontSize:13,color:C.teal}}>{a.annual}</td>

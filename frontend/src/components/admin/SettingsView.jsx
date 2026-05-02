@@ -38,7 +38,8 @@ export default function SettingsView(){
   const { data: companyData, isLoading: companyLoading } = useSettingsCompany();
   const { updateUserRole, updateCompany, isUpdatingRole, isUpdatingCompany } = useSettingsMutations();
 
-  const USERS = (usersData?.data || usersData || []).map(u => ({
+  const rawUsers = usersData?.data?.items || usersData?.items || usersData?.data || usersData || [];
+  const USERS = (Array.isArray(rawUsers) ? rawUsers : []).map(u => ({
     id: u._id || u.id,
     name: `${u.firstName||''} ${u.lastName||''}`.trim() || u.name || 'Unknown',
     role: u.role || 'Employee',

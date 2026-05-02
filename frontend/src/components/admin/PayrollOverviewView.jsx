@@ -34,8 +34,8 @@ export default function PayrollOverviewView(){
   const { loadPayslipPdfBlob } = usePayslipMutations();
 
   // Map employee data to payroll format
-  const rawEmps = empData?.data || empData || [];
-  const EMPS = rawEmps.map(e => ({
+  const rawEmps = empData?.data?.items || empData?.items || empData?.data || empData || [];
+  const EMPS = (Array.isArray(rawEmps) ? rawEmps : []).map(e => ({
     id: e._id || e.id,
     name: `${e.firstName||''} ${e.lastName||''}`.trim() || e.name || 'Unknown',
     department: e.department?.name || e.departmentName || '\u2014',

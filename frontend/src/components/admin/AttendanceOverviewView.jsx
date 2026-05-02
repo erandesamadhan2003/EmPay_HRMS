@@ -57,11 +57,13 @@ export default function AttendanceOverviewView(){
   const [modal,setModal]=useState(null);
 
   // Build department filter from API
-  const apiDepts = (deptData?.data || deptData || []).map(d => d.name).filter(Boolean);
+  const rawDepts = deptData?.data?.items || deptData?.items || deptData?.data || deptData || [];
+  const apiDepts = (Array.isArray(rawDepts) ? rawDepts : []).map(d => d.name).filter(Boolean);
   const DEPTS_DYNAMIC = ['All', ...new Set(apiDepts.length ? apiDepts : ['Engineering','HR','Finance','Operations','Marketing'])];
 
   // Use API employees or fallback to generated data
-  const apiEmps = empData?.data || empData || [];
+  const rawEmps = empData?.data?.items || empData?.items || empData?.data || empData || [];
+  const apiEmps = Array.isArray(rawEmps) ? rawEmps : [];
   const data = useMemo(() => {
     if (apiEmps.length > 0) {
       return apiEmps.map((e, idx) => {
