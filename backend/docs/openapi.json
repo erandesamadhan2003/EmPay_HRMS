@@ -1,0 +1,323 @@
+{
+	"openapi": "3.0.3",
+	"info": {
+		"title": "EmPay HRMS API",
+		"version": "1.0.0",
+		"description": "REST API under `/api/*`. JWT: `Authorization: Bearer <token>`."
+	},
+	"servers": [{ "url": "http://localhost:3000", "description": "Local" }],
+	"tags": [
+		{ "name": "Auth" },
+		{ "name": "Companies" },
+		{ "name": "Company requests" },
+		{ "name": "Departments" },
+		{ "name": "Employees" },
+		{ "name": "Attendance" },
+		{ "name": "Time off" },
+		{ "name": "Salary structures" },
+		{ "name": "Payruns" },
+		{ "name": "Payslips" },
+		{ "name": "Reports" },
+		{ "name": "Settings" },
+		{ "name": "Dashboard" },
+		{ "name": "Audit logs" }
+	],
+	"components": {
+		"securitySchemes": {
+			"bearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"bearerFormat": "JWT"
+			}
+		}
+	},
+	"paths": {
+		"/api/auth/login": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Login",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["login_id", "password"],
+								"properties": {
+									"login_id": { "type": "string" },
+									"password": { "type": "string" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK" }, "400": { "description": "Bad request" } }
+			}
+		},
+		"/api/auth/register": {
+			"post": {
+				"tags": ["Auth"],
+				"summary": "Register company admin (pending approval)",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["company_id", "name", "email"],
+								"properties": {
+									"company_id": { "type": "string", "format": "uuid" },
+									"name": { "type": "string" },
+									"email": { "type": "string" }
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/auth/change-password": {
+			"post": {
+				"tags": ["Auth"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Change password",
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/auth/logout": {
+			"post": {
+				"tags": ["Auth"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Logout",
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/auth/refresh": {
+			"post": { "tags": ["Auth"], "summary": "Refresh token (stub)", "responses": { "501": { "description": "Not implemented" } } }
+		},
+		"/api/auth/reset-password": {
+			"post": {
+				"tags": ["Auth"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Admin reset employee password",
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/companies": {
+			"post": {
+				"tags": ["Companies"],
+				"summary": "Create company",
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["name"],
+								"properties": { "name": { "type": "string" }, "logoUrl": { "type": "string", "nullable": true } }
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/company-requests": {
+			"get": {
+				"tags": ["Company requests"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "List company requests (superadmin)",
+				"parameters": [
+					{ "name": "page", "in": "query", "schema": { "type": "integer" } },
+					{ "name": "limit", "in": "query", "schema": { "type": "integer" } },
+					{ "name": "status", "in": "query", "schema": { "type": "string" } }
+				],
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/company-requests/{id}/review": {
+			"post": {
+				"tags": ["Company requests"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Approve/reject request",
+				"parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/departments": {
+			"get": {
+				"tags": ["Departments"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "List departments",
+				"responses": { "200": { "description": "OK" } }
+			},
+			"post": {
+				"tags": ["Departments"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Create department",
+				"responses": { "201": { "description": "Created" } }
+			}
+		},
+		"/api/departments/{id}": {
+			"put": {
+				"tags": ["Departments"],
+				"security": [{ "bearerAuth": [] }],
+				"parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+				"responses": { "200": { "description": "OK" } }
+			},
+			"delete": {
+				"tags": ["Departments"],
+				"security": [{ "bearerAuth": [] }],
+				"parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/employees": {
+			"get": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "summary": "Directory", "responses": { "200": { "description": "OK" } } },
+			"post": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "summary": "Create employee", "responses": { "201": { "description": "Created" } } }
+		},
+		"/api/employees/me": {
+			"get": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "summary": "Current user profile", "responses": { "200": { "description": "OK" } } },
+			"put": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "summary": "Update self", "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/employees/{id}": {
+			"get": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } },
+			"put": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } },
+			"delete": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/employees/{id}/salary": {
+			"get": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } },
+			"put": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/attendance/check-in": {
+			"post": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "summary": "Check in", "responses": { "201": { "description": "Created" } } }
+		},
+		"/api/attendance/check-out": {
+			"post": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "summary": "Check out", "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/attendance/me": {
+			"get": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "summary": "My attendance month", "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/attendance/summary/{userId}": {
+			"get": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/attendance": {
+			"get": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "summary": "Org roster (day)", "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/attendance/{userId}": {
+			"get": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "userId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/attendance/{id}": {
+			"put": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "summary": "Admin edit row (attendance id)", "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/time-off/allocations": {
+			"get": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } },
+			"post": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "responses": { "201": { "description": "Created" } } }
+		},
+		"/api/time-off/allocations/me": {
+			"get": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/time-off/allocations/{id}": {
+			"put": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } },
+			"delete": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/time-off/requests": {
+			"get": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } },
+			"post": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "responses": { "201": { "description": "Created" } } }
+		},
+		"/api/time-off/requests/me": {
+			"get": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/time-off/requests/{id}": {
+			"get": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/time-off/requests/{id}/approve": {
+			"put": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/time-off/requests/{id}/reject": {
+			"put": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/time-off/requests/{id}/cancel": {
+			"put": { "tags": ["Time off"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/salary-structures": {
+			"get": { "tags": ["Salary structures"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } },
+			"post": { "tags": ["Salary structures"], "security": [{ "bearerAuth": [] }], "responses": { "201": { "description": "Created" } } }
+		},
+		"/api/salary-structures/{id}": {
+			"get": { "tags": ["Salary structures"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } },
+			"put": { "tags": ["Salary structures"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } },
+			"delete": { "tags": ["Salary structures"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payruns": {
+			"get": { "tags": ["Payruns"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } },
+			"post": { "tags": ["Payruns"], "security": [{ "bearerAuth": [] }], "responses": { "201": { "description": "Created" } } }
+		},
+		"/api/payruns/{id}": {
+			"get": { "tags": ["Payruns"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payruns/{id}/validate": {
+			"post": { "tags": ["Payruns"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payruns/{id}/pay": {
+			"post": { "tags": ["Payruns"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payruns/{id}/cancel": {
+			"post": { "tags": ["Payruns"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payslips": {
+			"get": { "tags": ["Payslips"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payslips/me": {
+			"get": { "tags": ["Payslips"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payslips/{payrunId}/regenerate": {
+			"post": {
+				"tags": ["Payslips"],
+				"security": [{ "bearerAuth": [] }],
+				"parameters": [{ "name": "payrunId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+				"summary": "Regenerate payslip row (draft payrun)",
+				"responses": { "200": { "description": "OK" } }
+			}
+		},
+		"/api/payslips/{id}": {
+			"get": { "tags": ["Payslips"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/payslips/{id}/pdf": {
+			"get": { "tags": ["Payslips"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/reports/salary-statement": {
+			"get": { "tags": ["Reports"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/reports/payroll-summary": {
+			"get": { "tags": ["Reports"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/reports/employee-count": {
+			"get": { "tags": ["Reports"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/settings/users": {
+			"get": { "tags": ["Settings"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/settings/users/{id}/role": {
+			"put": { "tags": ["Settings"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/settings/company": {
+			"get": { "tags": ["Settings"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } },
+			"put": { "tags": ["Settings"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/dashboard/stats": {
+			"get": { "tags": ["Dashboard"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/dashboard/employer-cost": {
+			"get": { "tags": ["Dashboard"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/dashboard/employee-count": {
+			"get": { "tags": ["Dashboard"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/dashboard/warnings": {
+			"get": { "tags": ["Dashboard"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/audit-logs": {
+			"get": { "tags": ["Audit logs"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		}
+	}
+}
