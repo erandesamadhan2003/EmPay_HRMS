@@ -8,6 +8,7 @@ import { activateUser, findUserById } from "../models/User.js";
 import { findCompanyById } from "../models/Company.js";
 import { sendEmail } from "../utils/emailService.js";
 import { generateAccountVerifiedTemplate } from "../templates/accountVerifiedEmail.js";
+import { generateAccountRejectedTemplate } from "../templates/accountRejectedEmail.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
 import { serializePagination } from "../utils/serializer.js";
 
@@ -47,6 +48,23 @@ export async function reviewCompanyRequest(req, res) {
 
 				await sendEmail({
 					to: verifiedUser.email,
+					subject: emailTemplate.subject,
+					html: emailTemplate.html,
+					text: emailTemplate.text,
+				});
+			}
+		} else if (action === "reject") {
+			const rejectedUser = await findUserById(req.db, requestRow.admin_user_id);
+			const company = await findCompanyById(req.db, requestRow.company_id);
+			if (rejectedUser && company) {
+				const emailTemplate = generateAccountRejectedTemplate({
+					userName: rejectedUser.name,
+					companyName: company.name,
+					reviewerNotes: reviewer_notes,
+				});
+
+				await sendEmail({
+					to: rejectedUser.email,
 					subject: emailTemplate.subject,
 					html: emailTemplate.html,
 					text: emailTemplate.text,
@@ -120,7 +138,7 @@ export async function getDashboardStats(req, res) {
 				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending') as pending_requests,
 				(SELECT COUNT(*) FROM users WHERE role::text <> 'superadmin') as total_users
 		`);
-		
+
 		const data = {
 			totalCompanies: stats[0].total_companies,
 			activeCompanies: stats[0].active_companies,
@@ -134,7 +152,7 @@ export async function getDashboardStats(req, res) {
 			},
 			trendUp: { companies: true, active: true, pending: false, users: true }
 		};
-		
+
 		return res.json(successResponse(data, "Dashboard stats fetched"));
 	} catch (err) {
 		console.error(err);
@@ -188,9 +206,9 @@ export async function getPlatformActivity(req, res) {
 			action: r.action,
 			by: r.actor_name,
 			time: r.created_at,
-			type: r.action.toLowerCase().includes('reject') ? 'rejected' : 
-			      r.action.toLowerCase().includes('approve') ? 'approved' :
-			      r.action.toLowerCase().includes('suspend') ? 'suspended' : 'registered'
+			type: r.action.toLowerCase().includes('reject') ? 'rejected' :
+				r.action.toLowerCase().includes('approve') ? 'approved' :
+					r.action.toLowerCase().includes('suspend') ? 'suspended' : 'registered'
 		}));
 
 		return res.json(successResponse(activities, "Platform activity fetched"));
@@ -212,7 +230,7 @@ export async function getAnalyticsByStatus(req, res) {
 		`);
 		// Since companies table doesn't have status, we use requests as proxy or count active companies separately
 		const { rows: activeCount } = await req.db.query("SELECT COUNT(*) FROM companies");
-		
+
 		const data = {
 			active: parseInt(activeCount[0].count),
 			pending: parseInt(rows[0].pending),
@@ -250,7 +268,7 @@ export async function getAuditLogsStats(req, res) {
 				COUNT(*) FILTER (WHERE action LIKE '%CHANGE%')::int as warning_today
 			FROM audit_logs
 		`);
-		
+
 		const { rows: actors } = await req.db.query(`
 			SELECT u.name, COUNT(a.id)::int as count
 			FROM audit_logs a
@@ -277,15 +295,15 @@ export async function getAuditLogs(req, res) {
 		const { page, limit } = parseListQuery(req.query);
 		const { search, action, severity, company } = req.query;
 		const offset = (page - 1) * limit;
-		
+
 		let where = "WHERE 1=1";
 		const params = [];
-		
+
 		if (search) {
 			params.push(`%${search}%`);
 			where += ` AND (u.name ILIKE $${params.length} OR a.action ILIKE $${params.length})`;
 		}
-		
+
 		const { rows } = await req.db.query(`
 			SELECT a.*, u.name as actor_name, u.email as actor_email, u.role as actor_role
 			FROM audit_logs a
@@ -294,10 +312,10 @@ export async function getAuditLogs(req, res) {
 			ORDER BY a.created_at DESC
 			LIMIT $${params.length + 1} OFFSET $${params.length + 2}
 		`, [...params, limit, offset]);
-		
+
 		const { rows: countRows } = await req.db.query(`SELECT COUNT(*) FROM audit_logs a JOIN users u ON a.actor_id = u.id ${where}`, params);
 		const total = parseInt(countRows[0].count);
-		
+
 		const items = rows.map(r => ({
 			id: r.id,
 			timestamp: r.created_at,
@@ -307,7 +325,7 @@ export async function getAuditLogs(req, res) {
 			ip: r.ip_address,
 			userAgent: 'System'
 		}));
-		
+
 		return res.json(successResponse(
 			serializePagination(items, paginationMeta({ page, limit, total })),
 			"Audit logs fetched"
@@ -327,7 +345,7 @@ export async function getCompaniesStats(req, res) {
 				0 as suspended,
 				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending
 		`);
-		
+
 		const byIndustry = [
 			{ industry: 'Technology', count: 45 },
 			{ industry: 'Retail', count: 28 },
@@ -335,7 +353,7 @@ export async function getCompaniesStats(req, res) {
 			{ industry: 'Finance', count: 18 },
 			{ industry: 'Education', count: 15 }
 		];
-		
+
 		return res.json(successResponse({ ...stats[0], byIndustry }, "Companies stats fetched"));
 	} catch (err) {
 		console.error(err);
@@ -368,15 +386,15 @@ export async function listCompanies(req, res) {
 		const { page, limit } = parseListQuery(req.query);
 		const { search } = req.query;
 		const offset = (page - 1) * limit;
-		
+
 		let where = "WHERE 1=1";
 		const params = [];
-		
+
 		if (search) {
 			params.push(`%${search}%`);
 			where += ` AND (c.name ILIKE $${params.length})`;
 		}
-		
+
 		const { rows } = await req.db.query(`
 			SELECT c.*, 
 				(SELECT COUNT(*) FROM users WHERE company_id = c.id) as employee_count,
@@ -387,10 +405,10 @@ export async function listCompanies(req, res) {
 			ORDER BY c.created_at DESC
 			LIMIT $${params.length + 1} OFFSET $${params.length + 2}
 		`, [...params, limit, offset]);
-		
+
 		const { rows: countRows } = await req.db.query(`SELECT COUNT(*) FROM companies c ${where}`, params);
 		const total = parseInt(countRows[0].count);
-		
+
 		const items = rows.map(r => ({
 			id: r.id,
 			name: r.name,
@@ -404,7 +422,7 @@ export async function listCompanies(req, res) {
 			city: 'Mumbai',
 			plan: 'enterprise'
 		}));
-		
+
 		return res.json(successResponse(
 			serializePagination(items, paginationMeta({ page, limit, total })),
 			"Companies fetched"
