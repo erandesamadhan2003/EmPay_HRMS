@@ -3,9 +3,9 @@ import { createBrowserRouter } from "react-router-dom";
 // Auth
 import LandingPage from "../pages/auth/LandingPage";
 import LoginPage from "../pages/auth/Login";
-// import CreateEmployeePage from "../pages/auth/CreateEmployeePage";
-import CreateEmployeePage from "../pages/auth/Register";
+import CreateEmployeePage from "../pages/auth/Register"; 
 import ChangePassword from "../pages/auth/ChangePassword";
+
 // Admin
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminEmployees from "../pages/admin/EmployeeManagement";

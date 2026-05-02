@@ -1,5 +1,7 @@
 import { successResponse, errorResponse } from "../utils/constant.js";
 import { findUserById } from "../models/User.js";
+import { findCompanyById } from "../models/Company.js";
+import { distanceMeters, isValidLatLng } from "../utils/geo.js";
 import {
 	findAttendanceByUserAndDate,
 	insertAttendance,
@@ -14,6 +16,9 @@ import {
 	weekdaysInMonthRange,
 } from "../models/Attendance.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
+
+/** When company office coordinates are set, check-in must be within this radius (meters). */
+export const CHECK_IN_GEOFENCE_RADIUS_M = 100;
 
 async function pgToday(req) {
 	const { rows } = await req.db.query(`SELECT CURRENT_DATE::text AS d`);
@@ -79,6 +84,58 @@ async function monthlyAttendanceEnvelope(db, userId, reqQuery) {
 	};
 }
 
+/**
+ * WGS84 degrees. Preferred: top-level JSON numbers from the Geolocation API:
+ *   latitude  ← position.coords.latitude
+ *   longitude ← position.coords.longitude
+ * Also accepts: lat / lng / lon, or nested { coords: { latitude, longitude } }.
+ */
+function parseCheckInCoordinates(body) {
+	const b = body && typeof body === "object" ? body : {};
+	const c = b.coords && typeof b.coords === "object" ? b.coords : null;
+	const lat = b.latitude ?? b.lat ?? c?.latitude ?? c?.lat;
+	const lng = b.longitude ?? b.lng ?? b.lon ?? c?.longitude ?? c?.lng ?? c?.lon;
+	if (lat === undefined && lng === undefined) return null;
+	const la = typeof lat === "string" ? Number.parseFloat(lat) : lat;
+	const ln = typeof lng === "string" ? Number.parseFloat(lng) : lng;
+	return { lat: la, lng: ln };
+}
+
+/**
+ * For employees: whether geofence applies and office anchor (read-only).
+ * Frontend can mirror distance checks to disable the button; server always enforces on POST /check-in.
+ */
+export async function getCheckInGeofenceConfig(req, res) {
+	try {
+		const companyId = req.user?.company_id;
+		if (!companyId) {
+			return res.status(400).json(errorResponse("Company context required"));
+		}
+		const company = await findCompanyById(req.db, companyId);
+		if (!company) return res.status(404).json(errorResponse("Company not found"));
+
+		const olat = company.office_latitude != null ? Number(company.office_latitude) : null;
+		const olng = company.office_longitude != null ? Number(company.office_longitude) : null;
+		const geofenceRequired =
+			olat != null && olng != null && isValidLatLng(olat, olng);
+
+		return res.json(
+			successResponse(
+				{
+					geofenceRequired,
+					radiusMeters: CHECK_IN_GEOFENCE_RADIUS_M,
+					officeLatitude: geofenceRequired ? olat : null,
+					officeLongitude: geofenceRequired ? olng : null,
+				},
+				"Check-in location policy",
+			),
+		);
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json(errorResponse("Unable to load check-in policy"));
+	}
+}
+
 export async function checkIn(req, res) {
 	try {
 		const userId = req.user.id;
@@ -88,6 +145,32 @@ export async function checkIn(req, res) {
 		}
 		if (!user.is_active) {
 			return res.status(403).json(errorResponse("Account inactive"));
+		}
+
+		const company = await findCompanyById(req.db, user.company_id);
+		if (!company) return res.status(404).json(errorResponse("Company not found"));
+
+		const olat = company.office_latitude != null ? Number(company.office_latitude) : null;
+		const olng = company.office_longitude != null ? Number(company.office_longitude) : null;
+		const geofenceOn = olat != null && olng != null && isValidLatLng(olat, olng);
+
+		if (geofenceOn) {
+			const coords = parseCheckInCoordinates(req.body);
+			if (!coords || !isValidLatLng(coords.lat, coords.lng)) {
+				return res.status(400).json(
+					errorResponse(
+						"latitude and longitude are required for check-in (company geofence enabled)",
+					),
+				);
+			}
+			const d = distanceMeters(coords.lat, coords.lng, olat, olng);
+			if (d > CHECK_IN_GEOFENCE_RADIUS_M) {
+				return res.status(403).json(
+					errorResponse(
+						`Check-in denied: you are outside the allowed radius (${CHECK_IN_GEOFENCE_RADIUS_M}m from office)`,
+					),
+				);
+			}
 		}
 
 		const today = await pgToday(req);
