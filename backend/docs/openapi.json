@@ -20,7 +20,8 @@
 		{ "name": "Reports" },
 		{ "name": "Settings" },
 		{ "name": "Dashboard" },
-		{ "name": "Audit logs" }
+		{ "name": "Audit logs" },
+		{ "name": "Agent" }
 	],
 	"components": {
 		"securitySchemes": {
@@ -361,6 +362,35 @@
 		},
 		"/api/audit-logs": {
 			"get": { "tags": ["Audit logs"], "security": [{ "bearerAuth": [] }], "responses": { "200": { "description": "OK" } } }
+		},
+		"/api/agent/chat": {
+			"post": {
+				"tags": ["Agent"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Role-aware natural language action endpoint",
+				"description": "Parses user instruction with Groq, runs allowed safe actions, and asks confirmation for sensitive operations.",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"properties": {
+									"message": { "type": "string" },
+									"confirmation": {
+										"type": "object",
+										"properties": {
+											"approved": { "type": "boolean" },
+											"token": { "type": "string" }
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": { "200": { "description": "OK" } }
+			}
 		}
 	}
 }

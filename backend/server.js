@@ -18,6 +18,7 @@ import reportsRoutes from './routes/reports.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import auditLogsRoutes from './routes/auditLogs.routes.js';
+import agentRoutes from './routes/agent.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
 import bcrypt from 'bcrypt';
@@ -57,6 +58,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit-logs', auditLogsRoutes);
+app.use('/api/agent', agentRoutes);
 
 const PORT = process.env.PORT || 3000;
 
