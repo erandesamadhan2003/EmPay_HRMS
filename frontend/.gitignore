@@ -1,4 +1,6 @@
+# =========================
 # Logs
+# =========================
 logs
 *.log
 npm-debug.log*
@@ -7,18 +9,101 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# =========================
+# Runtime data
+# =========================
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# =========================
+# Dependency directories
+# =========================
+node_modules/
+jspm_packages/
+.pnp
+.pnp.js
+
+# =========================
+# Build output
+# =========================
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+coverage/
+*.tsbuildinfo
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+!.env.example
 *.local
 
-# Editor directories and files
+# =========================
+# Cache
+# =========================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# =========================
+# Package manager files
+# =========================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ⚠️ NOTE:
+# Remove above if you WANT to track lock files (recommended for most projects)
+
+# =========================
+# IDE / Editor
+# =========================
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+*.swp
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Testing
+# =========================
+coverage/
+jest-cache/
+
+# =========================
+# Misc
+# =========================
+*.tgz
+*.bak
+*.tmp
+*.temp
+
+# =========================
+# Docker
+# =========================
+.dockerignore
+Dockerfile.local
+
+# =========================
+# Optional: Logs & debug
+# =========================
+debug.log
