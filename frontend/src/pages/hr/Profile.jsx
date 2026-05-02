@@ -53,15 +53,22 @@ export default function Profile() {
       setUser({
         id: rawEmp.id,
         name: rawEmp.name || 'HR Officer',
-        loginId: rawEmp.loginId || '—',
+        loginId: rawEmp.loginId || rawEmp.login_id || '—',
         email: rawEmp.email || '',
-        phone: rawEmp.profile?.phone_number || '',
+        phone: rawEmp.phone || '',
         department: rawEmp.profile?.department?.name || 'Human Resources',
-        role: rawEmp.profile?.job_title || 'HR Officer',
-        joinDate: rawEmp.profile?.hire_date ? new Date(rawEmp.profile?.hire_date).toLocaleDateString() : '—',
-        dob: rawEmp.profile?.date_of_birth ? new Date(rawEmp.profile?.date_of_birth).toISOString().split('T')[0] : '',
+        role: rawEmp.role || 'HR Officer',
+        joinDate: rawEmp.profile?.dateOfJoining || rawEmp.profile?.date_of_joining
+          ? new Date(rawEmp.profile?.dateOfJoining || rawEmp.profile?.date_of_joining).toLocaleDateString() : '—',
+        dob: rawEmp.profile?.dateOfBirth || rawEmp.profile?.date_of_birth
+          ? new Date(rawEmp.profile?.dateOfBirth || rawEmp.profile?.date_of_birth).toISOString().split('T')[0] : '',
         gender: rawEmp.profile?.gender || '—',
-        address: rawEmp.profile?.address || '—',
+        address: rawEmp.profile?.location || '—',
+        location: rawEmp.profile?.location || '',
+        about: rawEmp.profile?.about || '',
+        personalEmail: rawEmp.profile?.personalEmail || rawEmp.profile?.personal_email || '',
+        nationality: rawEmp.profile?.nationality || '',
+        maritalStatus: rawEmp.profile?.maritalStatus || rawEmp.profile?.marital_status || '',
       });
     }
   }, [empData]);
@@ -69,13 +76,14 @@ export default function Profile() {
   const handleSave = async () => {
     try {
       await updateEmployeeMe({
-        name: user.name,
-        email: user.email,
+        phone: user.phone,
         profile: {
-          phone_number: user.phone,
-          date_of_birth: user.dob,
-          gender: user.gender,
-          address: user.address,
+          about: user.about || undefined,
+          location: user.location || user.address || undefined,
+          gender: user.gender || undefined,
+          nationality: user.nationality || undefined,
+          maritalStatus: user.maritalStatus || undefined,
+          personalEmail: user.personalEmail || undefined,
         }
       });
       setEditMode(false);

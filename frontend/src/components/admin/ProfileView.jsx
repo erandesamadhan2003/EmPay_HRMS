@@ -105,7 +105,15 @@ export default function ProfileView(){
 
   const handleSaveProfile = async () => {
     try {
-      await updateEmployeeMe({ firstName: form.name.split(' ')[0], lastName: form.name.split(' ').slice(1).join(' '), email: form.email, phone: form.phone, address: form.address });
+      await updateEmployeeMe({
+        phone: form.phone || undefined,
+        profile: {
+          about: form.about || undefined,
+          location: form.address || undefined,
+          gender: form.gender || undefined,
+          nationality: form.nationality || undefined,
+        }
+      });
       setEdit(false);
     } catch(e) { console.error('Save profile failed:', e); }
   };
