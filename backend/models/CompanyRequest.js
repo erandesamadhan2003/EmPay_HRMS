@@ -11,6 +11,20 @@ export async function findCompanyRequestByCompanyId(db, companyId) {
     return rows[0] || null;
 }
 
+export async function listCompanyRequests(db, { page = 1, limit = 10, status } = {}) {
+    const offset = (page - 1) * limit;
+    const params = [];
+    let where = '';
+    if (status) {
+        params.push(status);
+        where = `WHERE status = $1`;
+    }
+    params.push(limit, offset);
+    const q = `SELECT * FROM company_requests ${where} ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    const { rows } = await db.query(q, params);
+    return rows;
+}
+
 export async function findCompanyRequestById(db, requestId) {
     const { rows } = await db.query('SELECT * FROM company_requests WHERE id = $1', [requestId]);
     return rows[0] || null;

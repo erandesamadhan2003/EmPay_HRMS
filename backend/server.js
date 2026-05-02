@@ -2,10 +2,12 @@ import express from 'express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import superAdminRoutes from './routes/superAdmin.routes.js';
+import departmentsRoutes from './routes/departments.routes.js';
+import employeesRoutes from './routes/employees.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
 import bcrypt from 'bcrypt';
-
+import cors from 'cors';
 dotenv.config();
 
 const app = express();
@@ -15,8 +17,12 @@ app.use((req, res, next) => {
     next();
 });
 
+app.use(cors());
+
 app.use('/api', authRoutes);
 app.use('/api', superAdminRoutes);
+app.use('/api', departmentsRoutes);
+app.use('/api', employeesRoutes);
 
 const PORT = process.env.PORT || 3000;
 

@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 const C = {
     bg: "#0A0A0F",
@@ -223,6 +224,7 @@ const FeatureIcon = ({ type }) => {
 };
 
 export default function LandingPage() {
+    const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
 
@@ -289,7 +291,7 @@ export default function LandingPage() {
                 <div className="nav-links-desktop" style={{ display: "flex", gap: 32 }}>
                     {navLinks.map(l => <span key={l} className="nav-link">{l}</span>)}
                 </div>
-                <button className="cta-glow" style={{ display: "flex", background: C.accent, color: C.text, border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>
+                <button className="cta-glow" onClick={() => navigate("/login")} style={{ display: "flex", background: C.accent, color: C.text, border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>
                     Get Started
                 </button>
                 <button className="hamburger" onClick={() => setMenuOpen(o => !o)} style={{ display: "none", flexDirection: "column", gap: 5, background: "none", border: "none", cursor: "pointer", padding: 4 }}>
@@ -301,7 +303,7 @@ export default function LandingPage() {
             {menuOpen && (
                 <div style={{ position: "fixed", top: 64, left: 0, right: 0, background: C.surface, borderBottom: `1px solid ${C.border}`, zIndex: 999, padding: "20px 5%" }}>
                     {navLinks.map(l => <div key={l} style={{ padding: "12px 0", color: C.muted, fontSize: 15, fontWeight: 500, borderBottom: `1px solid ${C.border}` }}>{l}</div>)}
-                    <button style={{ marginTop: 16, width: "100%", background: C.accent, color: C.text, border: "none", borderRadius: 8, padding: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>Get Started</button>
+                    <button onClick={() => navigate("/login")} style={{ marginTop: 16, width: "100%", background: C.accent, color: C.text, border: "none", borderRadius: 8, padding: 12, fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>Get Started</button>
                 </div>
             )}
 
@@ -340,7 +342,7 @@ export default function LandingPage() {
                             One platform for attendance, payroll, and leave — with biometric security baked in from day one.
                         </p>
                         <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-                            <button className="cta-glow" style={{ background: C.accent, color: C.text, border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>
+                            <button className="cta-glow" onClick={() => navigate("/login")} style={{ background: C.accent, color: C.text, border: "none", borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>
                                 Get Started
                             </button>
                             <button className="ghost-btn" style={{ background: "transparent", color: C.text, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 28px", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>
@@ -564,7 +566,7 @@ export default function LandingPage() {
                             Join forward-thinking teams already using EmPay to automate attendance, payroll, and leave management.
                         </p>
                         <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap" }}>
-                            <button className="cta-glow" style={{ background: C.accent, color: C.text, border: "none", borderRadius: 10, padding: "16px 36px", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>
+                            <button className="cta-glow" onClick={() => navigate("/login")} style={{ background: C.accent, color: C.text, border: "none", borderRadius: 10, padding: "16px 36px", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>
                                 Start for Free
                             </button>
                             <button className="ghost-btn" style={{ background: "transparent", color: C.text, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 36px", fontSize: 15, fontWeight: 500, cursor: "pointer", fontFamily: "Poppins, sans-serif" }}>

@@ -46,3 +46,52 @@ export async function activateUser(db, userId) {
     const { rows } = await db.query('UPDATE users SET is_active = TRUE, updated_at = NOW() WHERE id = $1 RETURNING id, is_active', [userId]);
     return rows[0] || null;
 }
+
+export async function listEmployees(db, { companyId, page = 1, limit = 10, search, department, role, status } = {}) {
+    const offset = (page - 1) * limit;
+    const params = [companyId];
+    let where = 'WHERE u.company_id = $1';
+    if (search) {
+        params.push(`%${search}%`);
+        where += ` AND (u.name ILIKE $${params.length} OR u.login_id ILIKE $${params.length} OR u.email ILIKE $${params.length})`;
+    }
+    if (department) {
+        params.push(department);
+        where += ` AND e.department_id = $${params.length}`;
+    }
+    if (role) {
+        params.push(role);
+        where += ` AND u.role = $${params.length}`;
+    }
+    if (status) {
+        const isActive = status === 'active';
+        params.push(isActive);
+        where += ` AND u.is_active = $${params.length}`;
+    }
+
+    params.push(limit, offset);
+    const q = `SELECT u.id, u.login_id, u.name, u.email, u.role, u.is_active, e.department_id FROM users u LEFT JOIN employee_profiles e ON u.id = e.user_id ${where} ORDER BY u.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
+    const { rows } = await db.query(q, params);
+    return rows;
+}
+
+export async function updateUser(db, userId, data) {
+    const fields = [];
+    const params = [];
+    let idx = 1;
+    for (const [k, v] of Object.entries(data)) {
+        fields.push(`${k} = $${idx}`);
+        params.push(v);
+        idx++;
+    }
+    if (!fields.length) return null;
+    params.push(userId);
+    const q = `UPDATE users SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING id, name, email, role, is_active, login_id`;
+    const { rows } = await db.query(q, params);
+    return rows[0] || null;
+}
+
+export async function deactivateUser(db, userId) {
+    const { rows } = await db.query('UPDATE users SET is_active = FALSE, updated_at = NOW() WHERE id = $1 RETURNING id, is_active', [userId]);
+    return rows[0] || null;
+}

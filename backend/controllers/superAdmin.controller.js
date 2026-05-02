@@ -1,6 +1,7 @@
 import { successResponse, errorResponse } from '../utils/constant.js';
 import { findCompanyRequestById, reviewCompanyRequest as reviewCompanyRequestModel } from '../models/CompanyRequest.js';
 import { activateUser } from '../models/User.js';
+import { listCompanyRequests as listCompanyRequestsModel } from '../models/CompanyRequest.js';
 
 export async function reviewCompanyRequest(req, res) {
     try {
@@ -28,5 +29,16 @@ export async function reviewCompanyRequest(req, res) {
     } catch (err) {
         console.error(err);
         return res.status(500).json(errorResponse('Review failed'));
+    }
+}
+
+export async function listCompanyRequests(req, res) {
+    try {
+        const { page = 1, limit = 10, status } = req.query;
+        const rows = await listCompanyRequestsModel(req.db, { page: parseInt(page, 10), limit: parseInt(limit, 10), status });
+        return res.json(successResponse(rows, 'Company requests'));
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json(errorResponse('Unable to list company requests'));
     }
 }
