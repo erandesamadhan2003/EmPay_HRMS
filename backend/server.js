@@ -2,6 +2,8 @@ import express from 'express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import superAdminRoutes from './routes/superAdmin.routes.js';
+import departmentsRoutes from './routes/departments.routes.js';
+import employeesRoutes from './routes/employees.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
 import bcrypt from 'bcrypt';
@@ -17,6 +19,8 @@ app.use((req, res, next) => {
 
 app.use('/api', authRoutes);
 app.use('/api', superAdminRoutes);
+app.use('/api', departmentsRoutes);
+app.use('/api', employeesRoutes);
 
 const PORT = process.env.PORT || 3000;
 
