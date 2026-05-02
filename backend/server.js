@@ -1,1 +1,48 @@
-console.log("Hello World from the backend!");
+import express from 'express';
+import dotenv from 'dotenv';
+import router from './routes/auth.routes.js';
+import { run as runMigrations } from './migrations/index.js';
+import pool from './config/db.js';
+import bcrypt from 'bcrypt';
+
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+
+app.use('/api', router);
+
+const PORT = process.env.PORT || 3000;
+
+console.log(`Postgres config: host=${process.env.DB_HOST || 'localhost'} port=${process.env.DB_PORT || 5432} user=${process.env.DB_USER || 'postgres'} db=${process.env.DB_NAME || ''}`);
+
+async function ensureSuperadmin() {
+    const { rows } = await pool.query("SELECT * FROM users WHERE role = 'superadmin' LIMIT 1");
+    if (!rows.length) {
+        const pw = await bcrypt.hash('samadhan', 10);
+        await pool.query("INSERT INTO users(login_id, name, email, password_hash, role, is_active, must_change_pwd) VALUES($1,$2,$3,$4,$5,$6,$7)", ['superadmin', 'Super Admin', 'superadmin@local', pw, 'superadmin', true, true]);
+        console.log('Default superadmin created (email: superadmin@local, password: samadhan)');
+    }
+}
+
+async function start() {
+    try {
+        // quick DB connectivity test
+        try {
+            const { rows } = await pool.query('SELECT NOW()');
+            console.log('Postgres connected:', rows[0].now);
+        } catch (dbErr) {
+            console.error('Postgres connection test failed:', dbErr.message || dbErr);
+            throw dbErr;
+        }
+
+        await runMigrations();
+        await ensureSuperadmin();
+        app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    } catch (err) {
+        console.error('Startup failed', err);
+        process.exit(1);
+    }
+}
+
+start();
