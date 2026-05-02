@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/auth.service';
 
@@ -17,6 +17,13 @@ export const useAuth = () => {
 
     const [isReviewing, setIsReviewing] = useState(false);
     const [reviewError, setReviewError] = useState(null);
+
+    const user = useMemo(() => {
+        try {
+            const stored = localStorage.getItem("user");
+            return stored ? JSON.parse(stored) : null;
+        } catch { return null; }
+    }, []);
 
     const login = useCallback(async (credentials) => {
         setIsLoggingIn(true);
@@ -87,6 +94,8 @@ export const useAuth = () => {
     }, [navigate]);
 
     return {
+        user,
+
         login,
         isLoggingIn,
         loginError,
