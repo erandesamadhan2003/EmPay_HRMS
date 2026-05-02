@@ -1,9 +1,19 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
+import companiesRoutes from './routes/companies.routes.js';
 import superAdminRoutes from './routes/superAdmin.routes.js';
 import departmentsRoutes from './routes/departments.routes.js';
 import employeesRoutes from './routes/employees.routes.js';
+import attendanceRoutes from './routes/attendance.routes.js';
+import timeOffRoutes from './routes/timeOff.routes.js';
+import salaryStructuresRoutes from './routes/salaryStructures.routes.js';
+import payrunsRoutes from './routes/payruns.routes.js';
+import payslipsRoutes from './routes/payslips.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
+import settingsRoutes from './routes/settings.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
+import auditLogsRoutes from './routes/auditLogs.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
 import bcrypt from 'bcrypt';
@@ -19,10 +29,20 @@ app.use((req, res, next) => {
 
 app.use(cors());
 
-app.use('/api', authRoutes);
-app.use('/api', superAdminRoutes);
-app.use('/api', departmentsRoutes);
-app.use('/api', employeesRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/companies', companiesRoutes);
+app.use('/api/company-requests', superAdminRoutes);
+app.use('/api/departments', departmentsRoutes);
+app.use('/api/employees', employeesRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/time-off', timeOffRoutes);
+app.use('/api/salary-structures', salaryStructuresRoutes);
+app.use('/api/payruns', payrunsRoutes);
+app.use('/api/payslips', payslipsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/audit-logs', auditLogsRoutes);
 
 const PORT = process.env.PORT || 3000;
 

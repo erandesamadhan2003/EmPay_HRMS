@@ -5,6 +5,9 @@ import { up as departmentsUp } from './003_departments.js';
 import { up as usersUp } from './004_users.js';
 import { up as companyRequestsUp } from './005_company_requests.js';
 import { up as employeeProfilesUp } from './006_employee_profiles.js';
+import { up as typesCompatUp } from './007_types_compat.js';
+import { up as attendanceUp } from './008_attendance.js';
+import { up as phase2CoreUp } from './009_phase2_core.js';
 
 const migrations = [
     typesUp,
@@ -13,7 +16,9 @@ const migrations = [
     usersUp,
     companyRequestsUp,
     employeeProfilesUp,
-
+    typesCompatUp,
+    attendanceUp,
+    phase2CoreUp,
 ];
 
 export async function run() {

@@ -1,24 +1,23 @@
 /**
  * Path segments appended to axios `baseURL` (e.g. http://localhost:3000/api/).
- * Most paths follow the EmPay routes reference; auth/onboarding uses the current Express
- * router (`/login`, `/register`, `/company`, …) — switch to `/auth/*` when the gateway adds it.
+ * Mirrors Phase 1 EmPay REST surface (see backend/PHASE_PLAN.md).
  */
 
 export const API_PATHS = {
 	auth: {
-		login: "/login",
-		register: "/register",
+		login: "/auth/login",
+		register: "/auth/register",
 		refresh: "/auth/refresh",
 		logout: "/auth/logout",
 		changePassword: "/auth/change-password",
 		resetPassword: "/auth/reset-password",
 	},
 	companies: {
-		root: "/company",
+		root: "/companies",
 	},
 	companyRequests: {
 		list: "/company-requests",
-		review: (id) => `/company-request/${id}/review`,
+		review: (id) => `/company-requests/${id}/review`,
 	},
 	departments: {
 		root: "/departments",

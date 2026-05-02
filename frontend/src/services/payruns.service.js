@@ -12,8 +12,12 @@ export const payrunsService = {
 		return response.data;
 	},
 
-	create: async (data) => {
-		const response = await api.post(API_PATHS.payruns.root, data);
+	create: async (data = {}) => {
+		const body = {
+			periodStart: data.periodStart ?? data.period_start,
+			periodEnd: data.periodEnd ?? data.period_end,
+		};
+		const response = await api.post(API_PATHS.payruns.root, body);
 		return response.data;
 	},
 

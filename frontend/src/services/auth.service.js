@@ -63,8 +63,15 @@ export const authService = {
 		}
 	},
 
-	changePassword: async (payload) => {
-		const response = await api.post(API_PATHS.auth.changePassword, payload);
+	changePassword: async (payload = {}) => {
+		const body = {
+			current_password:
+				payload.current_password ?? payload.currentPassword ?? undefined,
+			new_password: payload.new_password ?? payload.newPassword ?? undefined,
+			confirm_password:
+				payload.confirm_password ?? payload.confirmPassword ?? undefined,
+		};
+		const response = await api.post(API_PATHS.auth.changePassword, body);
 		return response.data;
 	},
 
