@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useMyAttendance, useAttendanceMutations } from '../../hooks';
+import { useMyAttendance, useAttendanceMutations, useCheckInPolicy } from '../../hooks';
 import { LoadingSpinner, ErrorState } from '../admin/shared';
 
 const C = {
@@ -44,13 +44,17 @@ export default function AttendanceView() {
   const [page, setPage] = useState(1);
 
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
-  const { data: attData, isLoading, error, refetch } = useMyAttendance({ month: monthStr });
+  const { data: attData, isLoading: attLoading, error, refetch } = useMyAttendance({ month: monthStr });
+  const { data: policyData, isLoading: policyLoading } = useCheckInPolicy();
   const { checkIn, checkOut, isCheckingIn, isCheckingOut } = useAttendanceMutations();
 
   const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [geoError, setGeoError] = useState(null);
 
   const rawRecords = attData?.data?.items ?? attData?.data ?? attData ?? [];
   const records = Array.isArray(rawRecords) ? rawRecords : [];
+
+  const policy = policyData?.data ?? policyData ?? {};
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -91,14 +95,60 @@ export default function AttendanceView() {
   }, [tableData]);
 
   const paged = tableData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const totalPages = Math.ceil(tableData.length / PAGE_SIZE);
+  const totalPages = Math.ceil(tableData.length / PAGE_SIZE) || 1;
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); setPage(1); };
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); setPage(1); };
 
-  const handleCheckIn = async () => {
-    try { await checkIn(); setIsCheckedIn(true); refetch(); } catch (e) { console.error(e); }
+  const getDistanceMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI / 180;
+    const p2 = lat2 * Math.PI / 180;
+    const dp = (lat2 - lat1) * Math.PI / 180;
+    const dl = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   };
+
+  const handleCheckIn = async () => {
+    setGeoError(null);
+    if (policy.geofenceRequired) {
+      if (!navigator.geolocation) {
+        setGeoError('Geolocation is not supported by your browser.');
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const d = getDistanceMeters(latitude, longitude, policy.officeLatitude, policy.officeLongitude);
+        
+        if (d > (policy.radiusMeters || 100)) {
+          setGeoError(`You are ${Math.round(d)}m away from the office. You must be within ${policy.radiusMeters || 100}m to check in.`);
+          return;
+        }
+
+        try { 
+          await checkIn({ latitude, longitude }); 
+          setIsCheckedIn(true); 
+          refetch(); 
+        } catch (e) { 
+          setGeoError(e?.response?.data?.message || 'Check-in failed');
+        }
+      }, (err) => {
+        setGeoError('Please allow location access to check in.');
+      });
+    } else {
+      try { 
+        await checkIn(); 
+        setIsCheckedIn(true); 
+        refetch(); 
+      } catch (e) { 
+        setGeoError(e?.response?.data?.message || 'Check-in failed');
+      }
+    }
+  };
+
   const handleCheckOut = async () => {
     try { await checkOut(); setIsCheckedIn(false); refetch(); } catch (e) { console.error(e); }
   };
@@ -109,6 +159,7 @@ export default function AttendanceView() {
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const isLoading = attLoading || policyLoading;
   if (isLoading) return <LoadingSpinner message="Loading attendance..." />;
   if (error) return <ErrorState message="Failed to load attendance" onRetry={refetch} />;
 
@@ -136,6 +187,12 @@ export default function AttendanceView() {
           {isCheckingIn ? 'Checking In...' : isCheckingOut ? 'Checking Out...' : isCheckedIn ? '🔴 Check Out' : '🟢 Check In'}
         </button>
       </div>
+
+      {geoError && (
+        <div style={{ background: `${C.danger}15`, border: `1px solid ${C.danger}`, borderRadius: 12, padding: '12px 16px', marginBottom: 24, color: C.danger, fontSize: 13, fontWeight: 500 }}>
+          {geoError}
+        </div>
+      )}
 
       {/* MONTH NAV + STATS */}
       <div className="att-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 24 }}>

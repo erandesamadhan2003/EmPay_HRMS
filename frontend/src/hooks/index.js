@@ -12,6 +12,7 @@ export {
 	useAllAttendance,
 	useAttendanceForUser,
 	useAttendanceSummary,
+	useCheckInPolicy,
 	useAttendanceMutations,
 } from "./attendance/useAttendance";
 

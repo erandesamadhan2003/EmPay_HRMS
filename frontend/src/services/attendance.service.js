@@ -2,8 +2,13 @@ import api from "../api/api";
 import { API_PATHS } from "../api/endpoints";
 
 export const attendanceService = {
-	checkIn: async () => {
-		const response = await api.post(API_PATHS.attendance.checkIn);
+	getCheckInPolicy: async () => {
+		const response = await api.get(API_PATHS.attendance.checkInPolicy);
+		return response.data;
+	},
+
+	checkIn: async (coords) => {
+		const response = await api.post(API_PATHS.attendance.checkIn, coords || {});
 		return response.data;
 	},
 

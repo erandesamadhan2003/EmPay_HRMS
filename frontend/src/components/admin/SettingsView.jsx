@@ -67,10 +67,15 @@ export default function SettingsView(){
     setCompMsg(''); setCompErr('');
     try {
       const body = { name: compForm.name };
-      if (compForm.officeLatitude !== '' && compForm.officeLongitude !== '') {
+      
+      if (compForm.officeLatitude === '' || compForm.officeLongitude === '') {
+        body.officeLatitude = null;
+        body.officeLongitude = null;
+      } else {
         body.officeLatitude = Number(compForm.officeLatitude);
         body.officeLongitude = Number(compForm.officeLongitude);
       }
+
       if (compForm.logoUrl) body.logoUrl = compForm.logoUrl;
       await updateCompany(body);
       setCompMsg('Company info updated!');
@@ -168,6 +173,23 @@ export default function SettingsView(){
                 <div><label style={lb}>Office Latitude</label><input className="st-fi" type="number" step="any" style={fi} value={compForm.officeLatitude} onChange={e => setCompForm(f => ({ ...f, officeLatitude: e.target.value }))} placeholder="e.g. 12.9716" /></div>
                 <div><label style={lb}>Office Longitude</label><input className="st-fi" type="number" step="any" style={fi} value={compForm.officeLongitude} onChange={e => setCompForm(f => ({ ...f, officeLongitude: e.target.value }))} placeholder="e.g. 77.5946" /></div>
               </div>
+              <button 
+                onClick={() => {
+                  if (!navigator.geolocation) return setCompErr('Geolocation not supported by your browser.');
+                  setCompMsg('Fetching location...');
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setCompForm(f => ({ ...f, officeLatitude: pos.coords.latitude, officeLongitude: pos.coords.longitude }));
+                      setCompMsg('Location fetched! Click Save.');
+                    },
+                    (err) => setCompErr('Failed to fetch location. Please allow location access.')
+                  );
+                }}
+                className="st-btn"
+                style={{ background: 'transparent', border: `1px solid ${C.teal}`, color: C.teal, padding: '6px 12px', fontSize: 11, alignSelf: 'flex-start', marginTop: -4 }}
+              >
+                📍 Fetch My Current Location
+              </button>
             </div>
             {compErr && <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 10, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.25)', fontSize: 12, color: '#EF4444' }}>{compErr}</div>}
             {compMsg && <div style={{ marginTop: 12, padding: '8px 14px', borderRadius: 10, background: 'rgba(20,184,166,.1)', border: '1px solid rgba(20,184,166,.25)', fontSize: 12, color: C.teal }}>✓ {compMsg}</div>}
