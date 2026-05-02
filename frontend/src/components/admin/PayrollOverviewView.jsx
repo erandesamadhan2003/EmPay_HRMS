@@ -1,23 +1,13 @@
 import { useState } from 'react';
+import { usePayruns, usePayrunMutations, usePayslips, usePayslipMutations, useEmployees } from '../../hooks';
+import { LoadingSpinner, ErrorState } from './shared';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
 
-const EMPS=[
-  {id:1,name:'Aarav Sharma',department:'Engineering',basicSalary:45000,hra:18000,allowances:12000,pfDeduction:5400,professionalTax:200,status:'Paid'},
-  {id:2,name:'Priya Mehta',department:'HR',basicSalary:38000,hra:15200,allowances:9000,pfDeduction:4560,professionalTax:200,status:'Paid'},
-  {id:3,name:'Rohit Kumar',department:'Finance',basicSalary:35000,hra:14000,allowances:8500,pfDeduction:4200,professionalTax:200,status:'Paid'},
-  {id:4,name:'Neha Reddy',department:'Engineering',basicSalary:58000,hra:23200,allowances:15000,pfDeduction:6960,professionalTax:200,status:'Paid'},
-  {id:5,name:'Vikram Singh',department:'Operations',basicSalary:48000,hra:19200,allowances:12500,pfDeduction:5760,professionalTax:200,status:'Pending'},
-  {id:6,name:'Anita Gupta',department:'Marketing',basicSalary:28000,hra:11200,allowances:7000,pfDeduction:3360,professionalTax:200,status:'Processing'},
-  {id:7,name:'Karan Joshi',department:'Engineering',basicSalary:50000,hra:20000,allowances:13000,pfDeduction:6000,professionalTax:200,status:'Paid'},
-  {id:8,name:'Sneha Desai',department:'Finance',basicSalary:40000,hra:16000,allowances:10000,pfDeduction:4800,professionalTax:200,status:'Paid'},
-  {id:9,name:'Manish Patel',department:'Operations',basicSalary:25000,hra:10000,allowances:6000,pfDeduction:3000,professionalTax:200,status:'Pending'},
-  {id:10,name:'Divya Nair',department:'HR',basicSalary:30000,hra:12000,allowances:7500,pfDeduction:3600,professionalTax:200,status:'Paid'},
-].map(e=>({...e,netSalary:e.basicSalary+e.hra+e.allowances-e.pfDeduction-e.professionalTax}));
-
-const MONTHS=['January 2025','February 2025','March 2025','April 2025','May 2025'];
-const ST_C={Paid:C.teal,Pending:C.warning,Processing:C.cyan};
-const fmt=v=>'₹'+v.toLocaleString('en-IN');
+// Fallback data kept minimal
+const MONTHS_FB=['January 2025','February 2025','March 2025','April 2025','May 2025'];
+const ST_C={Paid:C.teal,Pending:C.warning,Processing:C.cyan,paid:C.teal,pending:C.warning,processing:C.cyan};
+const fmt=v=>'₹'+(v||0).toLocaleString('en-IN');
 
 const numWords=(n)=>{const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];if(n===0)return'Zero';let s='';if(Math.floor(n/100000)>0){s+=a[Math.floor(n/100000)]+' Lakh ';n%=100000;}if(Math.floor(n/1000)>0){const t=Math.floor(n/1000);s+=(t<20?a[t]:b[Math.floor(t/10)]+(t%10?' '+a[t%10]:''))+' Thousand ';n%=1000;}if(Math.floor(n/100)>0){s+=a[Math.floor(n/100)]+' Hundred ';n%=100;}if(n>0){if(n<20)s+=a[n];else s+=b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');}return s.trim()+' Only';};
 
@@ -39,6 +29,26 @@ const Styles=()=><style dangerouslySetInnerHTML={{__html:`
 `}}/>;
 
 export default function PayrollOverviewView(){
+  const { data: empData, isLoading, error, refetch } = useEmployees();
+  const { createPayrun, isCreating: isCreatingPayrun } = usePayrunMutations();
+  const { loadPayslipPdfBlob } = usePayslipMutations();
+
+  // Map employee data to payroll format
+  const rawEmps = empData?.data || empData || [];
+  const EMPS = rawEmps.map(e => ({
+    id: e._id || e.id,
+    name: `${e.firstName||''} ${e.lastName||''}`.trim() || e.name || 'Unknown',
+    department: e.department?.name || e.departmentName || '\u2014',
+    basicSalary: e.salary?.basic || e.basicSalary || e.salary || 0,
+    hra: e.salary?.hra || e.hra || Math.round((e.salary?.basic || e.basicSalary || e.salary || 0) * 0.4),
+    allowances: e.salary?.allowances || e.allowances || Math.round((e.salary?.basic || e.basicSalary || e.salary || 0) * 0.25),
+    pfDeduction: e.salary?.pf || e.pfDeduction || Math.round((e.salary?.basic || e.basicSalary || e.salary || 0) * 0.12),
+    professionalTax: e.salary?.professionalTax || e.professionalTax || 200,
+    status: e.payrollStatus || 'Pending',
+  })).map(e => ({...e, netSalary: e.basicSalary + e.hra + e.allowances - e.pfDeduction - e.professionalTax}));
+
+  const MONTHS = MONTHS_FB;
+
   const [month,setMonth]=useState('May 2025');
   const [modal,setModal]=useState(null);
   const [payrun,setPayrun]=useState(false);
@@ -46,7 +56,7 @@ export default function PayrollOverviewView(){
   const totGross=EMPS.reduce((a,e)=>a+e.basicSalary+e.hra+e.allowances,0);
   const totDed=EMPS.reduce((a,e)=>a+e.pfDeduction+e.professionalTax,0);
   const totNet=EMPS.reduce((a,e)=>a+e.netSalary,0);
-  const paid=EMPS.filter(e=>e.status==='Paid').length;
+  const paid=EMPS.filter(e=>e.status==='Paid'||e.status==='paid').length;
 
   const stats=[
     {label:'Total Gross',value:fmt(totGross),color:C.accent},
@@ -54,6 +64,13 @@ export default function PayrollOverviewView(){
     {label:'Total Net Payout',value:fmt(totNet),color:C.teal},
     {label:'Employees Paid',value:`${paid} / ${EMPS.length}`,color:C.cyan},
   ];
+
+  const handlePayrun = async () => {
+    try { await createPayrun({ month, year: 2025 }); setPayrun(false); } catch(err) { console.error('Payrun failed:', err); }
+  };
+
+  if (isLoading) return <LoadingSpinner message="Loading payroll..." />;
+  if (error) return <ErrorState message="Failed to load payroll data" onRetry={refetch} />;
 
   const th={padding:'10px 12px',fontSize:11,fontWeight:600,color:C.muted,textTransform:'uppercase',letterSpacing:'.04em',borderBottom:`1px solid ${C.border}`,textAlign:'left',whiteSpace:'nowrap',fontFamily:'Poppins,sans-serif'};
   const td={padding:'10px 12px',fontSize:13,color:C.text,borderBottom:`1px solid ${C.border}`,fontFamily:'Poppins,sans-serif',whiteSpace:'nowrap'};
@@ -227,7 +244,7 @@ export default function PayrollOverviewView(){
             <p style={{fontSize:11,color:C.warning,marginBottom:20}}>⚠ This will process salaries for all employees</p>
             <div style={{display:'flex',gap:12,justifyContent:'center'}}>
               <button onClick={()=>setPayrun(false)} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 22px',color:C.text,fontSize:13,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Cancel</button>
-              <button onClick={()=>setPayrun(false)} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Confirm & Generate</button>
+              <button onClick={handlePayrun} disabled={isCreatingPayrun} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:isCreatingPayrun?0.6:1}}>{isCreatingPayrun?'Processing...':'Confirm & Generate'}</button>
             </div>
           </div>
         </div>

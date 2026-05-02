@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useEmployeeProfile, useEmployeeMutations } from '../../hooks';
+import { LoadingSpinner, ErrorState } from './shared';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
 
-const USER_DATA={name:'Admin User',email:'admin@empay.io',phone:'+91 9876543210',dob:'1990-05-15',gender:'Male',address:'Vellore Institute of Technology, Vellore, Tamil Nadu 632014',department:'Administration',designation:'System Administrator',joinDate:'2022-01-10',loginId:'EMP-AU-2022-001',role:'Admin'};
+// Fallback user data (used when API unavailable)
+const USER_DATA_FB={name:'Admin User',email:'admin@empay.io',phone:'+91 9876543210',dob:'1990-05-15',gender:'Male',address:'Vellore Institute of Technology',department:'Administration',designation:'System Administrator',joinDate:'2022-01-10',loginId:'EMP-AU-2022-001',role:'Admin'};
 
 const ACTIVITY=[
   {action:'Approved leave request for Priya Mehta',time:'2 hours ago',icon:'✅'},
@@ -41,16 +44,49 @@ const ProgressBar=({value,max,color=C.teal})=>(
 const pwStrength=(p)=>{if(p.length<4)return{w:20,c:C.danger,l:'Weak'};if(p.length<8)return{w:50,c:C.warning,l:'Medium'};const has=/[A-Z]/.test(p)&&/[0-9]/.test(p)&&/[^A-Za-z0-9]/.test(p);return has?{w:100,c:C.teal,l:'Strong'}:{w:75,c:C.cyan,l:'Good'};};
 
 export default function ProfileView(){
+  const { data: profileData, isLoading, error, refetch } = useEmployeeProfile();
+  const { updateEmployeeMe, isUpdatingMe } = useEmployeeMutations();
+
+  const p = profileData?.data || profileData || {};
+  const profileUser = {
+    name: `${p.firstName||''} ${p.lastName||''}`.trim() || p.name || 'Admin User',
+    email: p.email || 'admin@empay.io',
+    phone: p.phone || '',
+    dob: p.dateOfBirth || p.dob || '',
+    gender: p.gender || 'Male',
+    address: p.address || '',
+    department: p.department?.name || p.departmentName || 'Administration',
+    designation: p.jobTitle || p.designation || 'System Administrator',
+    joinDate: p.joiningDate || p.createdAt || '',
+    loginId: p.loginId || p.employeeId || '—',
+    role: p.role || 'Admin',
+  };
+
   const [edit,setEdit]=useState(false);
   const [tab,setTab]=useState(0);
-  const [form,setForm]=useState(USER_DATA);
+  const [form,setForm]=useState(profileUser);
   const [pw,setPw]=useState({current:'',newPw:'',confirm:''});
   const str=pwStrength(pw.newPw);
   const match=pw.newPw&&pw.confirm&&pw.newPw===pw.confirm;
 
+  // Sync form when profile loads
+  useEffect(() => {
+    if (p.firstName || p.name) setForm(profileUser);
+  }, [p.firstName, p.name]);
+
+  const handleSaveProfile = async () => {
+    try {
+      await updateEmployeeMe({ firstName: form.name.split(' ')[0], lastName: form.name.split(' ').slice(1).join(' '), email: form.email, phone: form.phone, address: form.address });
+      setEdit(false);
+    } catch(e) { console.error('Save profile failed:', e); }
+  };
+
   const att={present:22,absent:2,leave:2,total:26};
   const attPct=Math.round((att.present/att.total)*100);
   const leaves=[{type:'Annual',used:6,total:18,color:C.teal},{type:'Sick',used:3,total:10,color:C.danger},{type:'Personal',used:2,total:5,color:C.accent}];
+
+  if (isLoading) return <LoadingSpinner message="Loading profile..." />;
+  if (error) return <ErrorState message="Failed to load profile" onRetry={refetch} />;
 
   return(
     <>
@@ -109,7 +145,7 @@ export default function ProfileView(){
                 <div><label style={lb}>Join Date</label><input style={{...fi,opacity:.5}} value={new Date(form.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})} readOnly/></div>
                 <div><label style={lb}>Login ID</label><input style={{...fi,opacity:.5,fontFamily:'monospace'}} value={form.loginId} readOnly/></div>
               </div>
-              {edit&&<div style={{marginTop:20,textAlign:'right'}}><button onClick={()=>setEdit(false)} style={{background:C.teal,color:'#fff',border:'none',borderRadius:10,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Save Changes</button></div>}
+              {edit&&<div style={{marginTop:20,textAlign:'right'}}><button onClick={handleSaveProfile} disabled={isUpdatingMe} style={{background:C.teal,color:'#fff',border:'none',borderRadius:10,padding:'10px 22px',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:isUpdatingMe?0.6:1}}>{isUpdatingMe?'Saving...':'Save Changes'}</button></div>}
             </div>}
 
             {/* CHANGE PASSWORD */}

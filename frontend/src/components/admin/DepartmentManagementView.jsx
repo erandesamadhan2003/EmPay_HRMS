@@ -1,17 +1,15 @@
 import { useState } from 'react';
+import { useDepartments, useDepartmentMutations, useEmployees } from '../../hooks';
+import { LoadingSpinner, ErrorState } from './shared';
 
 const C = {bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
 
 const DEPT_COLORS = {Engineering:C.teal,HR:C.accent,Finance:C.cyan,Operations:C.warning,Marketing:'#EC4899',Design:'#F97316'};
 const COLOR_SWATCHES = [C.teal,C.accent,C.cyan,C.warning,'#EC4899','#F97316'];
 
-const DEPTS = [
+const DEPTS_FALLBACK = [
   {id:1,name:'Engineering',headName:'Neha Reddy',employeeCount:42,createdDate:'2022-03-15',description:'Software development, infrastructure, and technical architecture across all product lines.'},
   {id:2,name:'HR',headName:'Priya Mehta',employeeCount:12,createdDate:'2022-03-15',description:'People operations, talent acquisition, employee engagement and compliance management.'},
-  {id:3,name:'Finance',headName:'Rohit Kumar',employeeCount:18,createdDate:'2022-06-01',description:'Financial planning, accounting, budgeting, payroll processing and audit compliance.'},
-  {id:4,name:'Operations',headName:'Vikram Singh',employeeCount:28,createdDate:'2023-01-10',description:'Day-to-day business operations, process optimization and supply chain management.'},
-  {id:5,name:'Marketing',headName:'Anita Gupta',employeeCount:15,createdDate:'2023-04-20',description:'Brand strategy, digital marketing, content creation and market research initiatives.'},
-  {id:6,name:'Design',headName:'Divya Nair',employeeCount:9,createdDate:'2024-01-08',description:'UI/UX design, product design, brand identity and creative visual communications.'},
 ];
 
 const PenIco = ({color}) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
@@ -35,18 +33,45 @@ const Styles = () => <style dangerouslySetInnerHTML={{__html:`
 const mf = {background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',width:'100%'};
 
 export default function DepartmentManagementView() {
+  const { data: deptData, isLoading, error, refetch } = useDepartments();
+  const { data: empData } = useEmployees();
+  const { createDepartment, updateDepartment, deleteDepartment, isCreating, isUpdating, isDeleting } = useDepartmentMutations();
+
+  const rawDepts = deptData?.data || deptData || [];
+  const DEPTS = rawDepts.map(d => ({
+    id: d._id || d.id,
+    name: d.name || 'Unknown',
+    headName: d.head?.firstName ? `${d.head.firstName} ${d.head.lastName||''}`.trim() : (d.headName || '—'),
+    employeeCount: d.employeeCount ?? d.members?.length ?? 0,
+    createdDate: d.createdAt || d.createdDate || '',
+    description: d.description || '',
+  }));
+
+  const employees = (empData?.data || empData || []).map(e => `${e.firstName||''} ${e.lastName||''}`.trim() || e.name).filter(Boolean);
+
   const [modal, setModal] = useState(null);
   const [modalDept, setModalDept] = useState(null);
   const [form, setForm] = useState({name:'',description:'',headName:'',color:C.teal});
 
   const totalEmps = DEPTS.reduce((a,d)=>a+d.employeeCount,0);
-  const largest = DEPTS.reduce((a,d)=>d.employeeCount>a.employeeCount?d:a,DEPTS[0]);
-  const newest = DEPTS.reduce((a,d)=>new Date(d.createdDate)>new Date(a.createdDate)?d:a,DEPTS[0]);
+  const largest = DEPTS.length ? DEPTS.reduce((a,d)=>d.employeeCount>a.employeeCount?d:a,DEPTS[0]) : {name:'—'};
+  const newest = DEPTS.length ? DEPTS.reduce((a,d)=>new Date(d.createdDate)>new Date(a.createdDate)?d:a,DEPTS[0]) : {name:'—'};
 
   const openAdd = () => {setForm({name:'',description:'',headName:'',color:C.teal});setModal('add');};
   const openEdit = (d) => {setForm({name:d.name,description:d.description,headName:d.headName,color:DEPT_COLORS[d.name]||C.teal});setModalDept(d);setModal('edit');};
   const openDel = (d) => {setModalDept(d);setModal('delete');};
   const close = () => {setModal(null);setModalDept(null);};
+
+  const handleSave = async () => {
+    try {
+      if (modal === 'add') await createDepartment({ name: form.name, description: form.description });
+      else if (modal === 'edit' && modalDept) await updateDepartment({ id: modalDept.id, data: { name: form.name, description: form.description } });
+      close();
+    } catch (err) { console.error('Save failed:', err); }
+  };
+  const handleDelete = async () => {
+    try { if (modalDept) await deleteDepartment(modalDept.id); close(); } catch (err) { console.error('Delete failed:', err); }
+  };
 
   const stats = [
     {label:'Total Departments',value:DEPTS.length,color:C.accent},
@@ -54,6 +79,9 @@ export default function DepartmentManagementView() {
     {label:'Largest Department',value:largest.name,color:C.cyan},
     {label:'Newest Department',value:newest.name,color:C.warning},
   ];
+
+  if (isLoading) return <LoadingSpinner message="Loading departments..." />;
+  if (error) return <ErrorState message="Failed to load departments" onRetry={refetch} />;
 
   return (
     <>
@@ -149,7 +177,7 @@ export default function DepartmentManagementView() {
             </div>
             <div style={{display:'flex',gap:12,justifyContent:'flex-end',marginTop:24}}>
               <button onClick={close} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 22px',color:C.text,fontSize:13,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Cancel</button>
-              <button onClick={close} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Save</button>
+              <button onClick={handleSave} disabled={isCreating||isUpdating} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:(isCreating||isUpdating)?0.6:1}}>{(isCreating||isUpdating)?'Saving...':'Save'}</button>
             </div>
           </div>
         </div>
@@ -167,7 +195,7 @@ export default function DepartmentManagementView() {
             <p style={{fontSize:13,color:C.muted,marginBottom:24}}>Are you sure you want to delete <strong style={{color:C.text}}>{modalDept.name}</strong>? All {modalDept.employeeCount} employees will need reassignment.</p>
             <div style={{display:'flex',gap:12,justifyContent:'center'}}>
               <button onClick={close} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 22px',color:C.text,fontSize:13,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Cancel</button>
-              <button onClick={close} style={{background:C.danger,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Delete</button>
+              <button onClick={handleDelete} disabled={isDeleting} style={{background:C.danger,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:isDeleting?0.6:1}}>{isDeleting?'Deleting...':'Delete'}</button>
             </div>
           </div>
         </div>

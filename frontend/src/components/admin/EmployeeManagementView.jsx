@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useEmployees, useEmployeeMutations, useDepartments } from '../../hooks';
+import { LoadingSpinner, ErrorState } from './shared';
 
 const C = {
   bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',
@@ -9,19 +11,6 @@ const C = {
 };
 
 const DEPT_COLORS = { Engineering:C.teal, HR:C.accent, Finance:C.cyan, Operations:C.warning, Marketing:'#EC4899' };
-
-const EMPLOYEES = [
-  { id:1,loginId:'EMP-AS-2024-001',name:'Aarav Sharma',email:'aarav@empay.io',phone:'9876543210',department:'Engineering',role:'Developer',joinDate:'2024-01-15',status:'Active',salary:85000 },
-  { id:2,loginId:'EMP-PM-2024-002',name:'Priya Mehta',email:'priya@empay.io',phone:'9876543211',department:'HR',role:'HR Manager',joinDate:'2024-02-10',status:'Active',salary:72000 },
-  { id:3,loginId:'EMP-RK-2023-003',name:'Rohit Kumar',email:'rohit@empay.io',phone:'9876543212',department:'Finance',role:'Analyst',joinDate:'2023-11-05',status:'Active',salary:68000 },
-  { id:4,loginId:'EMP-NR-2024-004',name:'Neha Reddy',email:'neha@empay.io',phone:'9876543213',department:'Engineering',role:'Lead Developer',joinDate:'2024-03-20',status:'Active',salary:110000 },
-  { id:5,loginId:'EMP-VS-2023-005',name:'Vikram Singh',email:'vikram@empay.io',phone:'9876543214',department:'Operations',role:'Manager',joinDate:'2023-09-12',status:'Inactive',salary:92000 },
-  { id:6,loginId:'EMP-AG-2024-006',name:'Anita Gupta',email:'anita@empay.io',phone:'9876543215',department:'Marketing',role:'Exec',joinDate:'2024-04-01',status:'Active',salary:55000 },
-  { id:7,loginId:'EMP-KJ-2024-007',name:'Karan Joshi',email:'karan@empay.io',phone:'9876543216',department:'Engineering',role:'DevOps',joinDate:'2024-05-18',status:'Active',salary:95000 },
-  { id:8,loginId:'EMP-SD-2023-008',name:'Sneha Desai',email:'sneha@empay.io',phone:'9876543217',department:'Finance',role:'Controller',joinDate:'2023-07-22',status:'Active',salary:78000 },
-  { id:9,loginId:'EMP-MP-2024-009',name:'Manish Patel',email:'manish@empay.io',phone:'9876543218',department:'Operations',role:'Coordinator',joinDate:'2024-06-10',status:'Inactive',salary:48000 },
-  { id:10,loginId:'EMP-DN-2024-010',name:'Divya Nair',email:'divya@empay.io',phone:'9876543219',department:'HR',role:'Recruiter',joinDate:'2024-07-05',status:'Active',salary:58000 },
-];
 
 const Ico = ({d,color=C.muted,size=16}) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>;
 const EyeIco = ({color}) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
@@ -60,18 +49,41 @@ const Styles = () => <style dangerouslySetInnerHTML={{__html:`
 `}}/>;
 
 export default function EmployeeManagementView() {
+  // ─── API Hooks ───
+  const { data: empData, isLoading, error, refetch } = useEmployees();
+  const { data: deptData } = useDepartments();
+  const { createEmployee, updateEmployee, deleteEmployee, isCreating, isUpdating, isDeleting } = useEmployeeMutations();
+
+  // Map API response to component format
+  const rawEmps = empData?.data || empData || [];
+  const EMPLOYEES = rawEmps.map(e => ({
+    id: e._id || e.id,
+    loginId: e.loginId || e.employeeId || `EMP-${e._id?.slice(-4) || '0000'}`,
+    name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name || 'Unknown',
+    email: e.email || e.workEmail || '—',
+    phone: e.phone || e.mobile || '—',
+    department: e.department?.name || e.departmentName || '—',
+    role: e.role || e.jobTitle || '—',
+    joinDate: e.joiningDate || e.createdAt || '',
+    status: e.status === 'active' || e.isActive !== false ? 'Active' : 'Inactive',
+    salary: e.salary || e.basicSalary || 0,
+  }));
+
+  // Available departments from API
+  const apiDepts = (deptData?.data || deptData || []).map(d => d.name);
+
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
   const [roleFilter, setRoleFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selected, setSelected] = useState([]);
   const [page, setPage] = useState(1);
-  const [modal, setModal] = useState(null); // 'add'|'edit'|'view'|'delete'
+  const [modal, setModal] = useState(null);
   const [modalEmp, setModalEmp] = useState(null);
   const [form, setForm] = useState({name:'',email:'',phone:'',department:'Engineering',role:'',joinDate:'',salary:''});
 
-  const depts = ['All',...new Set(EMPLOYEES.map(e=>e.department))];
-  const roles = ['All',...new Set(EMPLOYEES.map(e=>e.role))];
+  const depts = ['All',...new Set([...apiDepts, ...EMPLOYEES.map(e=>e.department)].filter(Boolean))];
+  const roles = ['All',...new Set(EMPLOYEES.map(e=>e.role).filter(Boolean))];
 
   const filtered = EMPLOYEES.filter(e => {
     if (search && !e.name.toLowerCase().includes(search.toLowerCase()) && !e.loginId.toLowerCase().includes(search.toLowerCase())) return false;
@@ -87,12 +99,41 @@ export default function EmployeeManagementView() {
   const toggleAll = () => setSelected(allChecked ? [] : paged.map(e=>e.id));
   const toggleOne = (id) => setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
 
-  const openAdd = () => { setForm({name:'',email:'',phone:'',department:'Engineering',role:'',joinDate:'',salary:''}); setModal('add'); };
+  const openAdd = () => { setForm({name:'',email:'',phone:'',department:apiDepts[0]||'Engineering',role:'',joinDate:'',salary:''}); setModal('add'); };
   const openEdit = (e) => { setForm({name:e.name,email:e.email,phone:e.phone,department:e.department,role:e.role,joinDate:e.joinDate,salary:e.salary}); setModalEmp(e); setModal('edit'); };
   const openView = (e) => { setModalEmp(e); setModal('view'); };
   const openDelete = (e) => { setModalEmp(e); setModal('delete'); };
   const closeModal = () => { setModal(null); setModalEmp(null); };
+
+  const handleSave = async () => {
+    try {
+      const payload = {
+        firstName: form.name.split(' ')[0] || '',
+        lastName: form.name.split(' ').slice(1).join(' ') || '',
+        email: form.email,
+        phone: form.phone,
+        department: form.department,
+        role: form.role,
+        joiningDate: form.joinDate,
+        salary: Number(form.salary),
+      };
+      if (modal === 'add') await createEmployee(payload);
+      else if (modal === 'edit' && modalEmp) await updateEmployee({ id: modalEmp.id, data: payload });
+      closeModal();
+    } catch (err) { console.error('Save failed:', err); }
+  };
+
+  const handleDelete = async () => {
+    try {
+      if (modalEmp) await deleteEmployee(modalEmp.id);
+      closeModal();
+    } catch (err) { console.error('Delete failed:', err); }
+  };
+
   const genLoginId = () => { const n=form.name.trim().split(' '); return `EMP-${(n[0]?.[0]||'X')}${(n[1]?.[0]||'X')}-${new Date().getFullYear()}-${String(EMPLOYEES.length+1).padStart(3,'0')}`; };
+
+  if (isLoading) return <LoadingSpinner message="Loading employees..." />;
+  if (error) return <ErrorState message="Failed to load employees" onRetry={refetch} />;
 
   const th = {padding:'12px 14px',fontSize:11,fontWeight:600,color:C.muted,textTransform:'uppercase',letterSpacing:'.04em',borderBottom:`1px solid ${C.border}`,textAlign:'left',position:'sticky',top:0,background:C.surface,zIndex:2,fontFamily:'Poppins,sans-serif'};
   const td = {padding:'12px 14px',fontSize:13,color:C.text,fontFamily:'Poppins,sans-serif',borderBottom:`1px solid ${C.border}`};
@@ -259,7 +300,7 @@ export default function EmployeeManagementView() {
             </div>
             <div style={{display:'flex',gap:12,justifyContent:'flex-end',marginTop:24}}>
               <button onClick={closeModal} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 22px',color:C.text,fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Cancel</button>
-              <button onClick={closeModal} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Save</button>
+              <button onClick={handleSave} disabled={isCreating||isUpdating} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:(isCreating||isUpdating)?0.6:1}}>{(isCreating||isUpdating)?'Saving...':'Save'}</button>
             </div>
           </div>
         </div>
@@ -311,7 +352,7 @@ export default function EmployeeManagementView() {
             <p style={{fontSize:13,color:C.muted,marginBottom:24}}>Are you sure you want to remove <strong style={{color:C.text}}>{modalEmp.name}</strong>? This action cannot be undone.</p>
             <div style={{display:'flex',gap:12,justifyContent:'center'}}>
               <button onClick={closeModal} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 22px',color:C.text,fontSize:13,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Cancel</button>
-              <button onClick={closeModal} style={{background:C.danger,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Delete</button>
+              <button onClick={handleDelete} disabled={isDeleting} style={{background:C.danger,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:isDeleting?0.6:1}}>{isDeleting?'Deleting...':'Delete'}</button>
             </div>
           </div>
         </div>

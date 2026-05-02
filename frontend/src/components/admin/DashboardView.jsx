@@ -4,6 +4,8 @@ import {
   PieChart, Pie, Cell, Legend, Label,
   BarChart, Bar,
 } from 'recharts';
+import { useDashboardStats, useEmployees, useTimeOffRequests, useDashboardEmployerCost } from '../../hooks';
+import { LoadingSpinner, ErrorState } from './shared';
 
 // ─── Colors ───
 const C = {
@@ -81,45 +83,16 @@ const CSSIcon = ({ type, color, size = 24 }) => {
   return null;
 };
 
-// ─── Dummy Data ───
-const attendanceData = [
-  { day: 'Mon', present: 96, absent: 28 },
-  { day: 'Tue', present: 102, absent: 22 },
-  { day: 'Wed', present: 98, absent: 26 },
-  { day: 'Thu', present: 110, absent: 14 },
-  { day: 'Fri', present: 92, absent: 32 },
-  { day: 'Sat', present: 45, absent: 4 },
-  { day: 'Sun', present: 12, absent: 2 },
+// ─── Fallback Data (used when API unavailable) ───
+const FB_ATT = [
+  { day: 'Mon', present: 96, absent: 28 },{ day: 'Tue', present: 102, absent: 22 },
+  { day: 'Wed', present: 98, absent: 26 },{ day: 'Thu', present: 110, absent: 14 },
+  { day: 'Fri', present: 92, absent: 32 },{ day: 'Sat', present: 45, absent: 4 },{ day: 'Sun', present: 12, absent: 2 },
 ];
-
-const leaveData = [
-  { name: 'Approved', value: 18, color: C.teal },
-  { name: 'Pending', value: 7, color: C.warning },
-  { name: 'Rejected', value: 3, color: C.danger },
-];
-
-const recentEmployees = [
-  { name: 'Priya Sharma', dept: 'Engineering', role: 'Developer', date: 'Apr 28, 2025', active: true },
-  { name: 'Rahul Mehta', dept: 'Marketing', role: 'Manager', date: 'Apr 25, 2025', active: true },
-  { name: 'Anita Desai', dept: 'Finance', role: 'Analyst', date: 'Apr 22, 2025', active: true },
-  { name: 'Vikram Singh', dept: 'HR', role: 'Coordinator', date: 'Apr 18, 2025', active: false },
-  { name: 'Neha Gupta', dept: 'Design', role: 'UI Designer', date: 'Apr 15, 2025', active: true },
-];
-
-const pendingLeaves = [
-  { name: 'Arjun Patel', initials: 'AP', color: C.accent, type: 'Sick Leave', from: 'May 2', to: 'May 4' },
-  { name: 'Sneha Reddy', initials: 'SR', color: C.teal, type: 'Annual Leave', from: 'May 5', to: 'May 9' },
-  { name: 'Karan Joshi', initials: 'KJ', color: C.cyan, type: 'Personal Leave', from: 'May 3', to: 'May 3' },
-  { name: 'Meera Nair', initials: 'MN', color: C.warning, type: 'Sick Leave', from: 'May 6', to: 'May 7' },
-];
-
-const payrollData = [
-  { month: 'Nov', payout: 420000, deductions: 38000 },
-  { month: 'Dec', payout: 445000, deductions: 41000 },
-  { month: 'Jan', payout: 460000, deductions: 39000 },
-  { month: 'Feb', payout: 452000, deductions: 42000 },
-  { month: 'Mar', payout: 478000, deductions: 44000 },
-  { month: 'Apr', payout: 482000, deductions: 40000 },
+const FB_PAY = [
+  { month: 'Nov', payout: 420000, deductions: 38000 },{ month: 'Dec', payout: 445000, deductions: 41000 },
+  { month: 'Jan', payout: 460000, deductions: 39000 },{ month: 'Feb', payout: 452000, deductions: 42000 },
+  { month: 'Mar', payout: 478000, deductions: 44000 },{ month: 'Apr', payout: 482000, deductions: 40000 },
 ];
 
 // ─── Card Wrapper ───
@@ -164,10 +137,23 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // ─── Main Dashboard ───
 export default function DashboardView() {
-  const emp = useCountUp(124);
-  const present = useCountUp(98);
-  const leaves = useCountUp(7, 800);
-  const payroll = useCountUp(482000);
+  // ─── API Hooks ───
+  const { data: dashStats, isLoading: statsLoading, error: statsError } = useDashboardStats();
+  const { data: empData } = useEmployees();
+  const { data: leaveReqs } = useTimeOffRequests({ status: 'pending' });
+  const { data: costData } = useDashboardEmployerCost();
+
+  // Derive stats from API (fallback to 0)
+  const s = dashStats?.data || dashStats || {};
+  const totalEmp = s.totalEmployees ?? empData?.data?.length ?? empData?.length ?? 0;
+  const presentToday = s.presentToday ?? 0;
+  const pendingLeaveCount = s.pendingLeaves ?? leaveReqs?.data?.length ?? leaveReqs?.length ?? 0;
+  const monthPayroll = s.thisMonthPayroll ?? costData?.data?.total ?? 0;
+
+  const emp = useCountUp(totalEmp);
+  const present = useCountUp(presentToday);
+  const leaves = useCountUp(pendingLeaveCount, 800);
+  const payroll = useCountUp(monthPayroll);
 
   const formatPayroll = (v) => {
     if (v >= 100000) return `₹${(v / 100000).toFixed(2)}L`;
@@ -175,12 +161,47 @@ export default function DashboardView() {
     return `₹${v}`;
   };
 
+  // Map API employees to table format
+  const employees = (empData?.data || empData || []);
+  const recentEmployees = employees.slice(-5).reverse().map(e => ({
+    name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name || 'Unknown',
+    dept: e.department?.name || e.departmentName || '—',
+    role: e.role || e.jobTitle || '—',
+    date: e.createdAt ? new Date(e.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+    active: e.status === 'active' || e.isActive !== false,
+  }));
+
+  // Map API leave requests
+  const rawLeaves = leaveReqs?.data || leaveReqs || [];
+  const pendingLeaves = rawLeaves.slice(0, 4).map((l, i) => {
+    const nm = l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName||''}`.trim() : (l.employeeName || 'Employee');
+    const ini = nm.split(' ').map(x => x[0]).join('');
+    const colors = [C.accent, C.teal, C.cyan, C.warning];
+    return { name: nm, initials: ini, color: colors[i % 4], type: l.leaveType || l.type || 'Leave', from: l.startDate ? new Date(l.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—', to: l.endDate ? new Date(l.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—' };
+  });
+
+  // Leave donut from stats
+  const approvedCount = s.approvedLeaves ?? 18;
+  const rejectedCount = s.rejectedLeaves ?? 3;
+  const leaveData = [
+    { name: 'Approved', value: approvedCount, color: C.teal },
+    { name: 'Pending', value: pendingLeaveCount || 7, color: C.warning },
+    { name: 'Rejected', value: rejectedCount, color: C.danger },
+  ];
+
+  // Chart data (use API or fallback)
+  const attendanceData = s.weeklyAttendance || FB_ATT;
+  const payrollData = costData?.data?.monthly || FB_PAY;
+
   const stats = [
     { label: 'Total Employees', value: emp, fmt: String(emp), icon: 'users', color: C.accent, glow: C.accentGlow, trend: '+3 this week', up: true },
     { label: 'Present Today', value: present, fmt: String(present), icon: 'clock', color: C.teal, glow: C.tealLight, trend: '+5 from yesterday', up: true },
     { label: 'Pending Leaves', value: leaves, fmt: String(leaves), icon: 'calendar', color: C.warning, glow: 'rgba(245,158,11,0.2)', trend: '-2 from last week', up: false },
     { label: 'This Month Payroll', value: payroll, fmt: formatPayroll(payroll), icon: 'dollar', color: C.cyan, glow: 'rgba(6,182,212,0.2)', trend: '+₹4K from last', up: true },
   ];
+
+  if (statsLoading) return <LoadingSpinner message="Loading dashboard..." />;
+  if (statsError) return <ErrorState message="Failed to load dashboard" onRetry={() => window.location.reload()} />;
 
   return (
     <>

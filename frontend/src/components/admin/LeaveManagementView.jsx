@@ -1,35 +1,14 @@
 import { useState } from 'react';
+import { useTimeOffRequests, useTimeOffRequestMutations } from '../../hooks';
+import { LoadingSpinner, ErrorState } from './shared';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
 
 const LT_COLORS={'Annual Leave':C.teal,'Sick Leave':C.danger,'Personal Leave':C.accent,'Emergency Leave':C.warning};
 const ST_COLORS={Pending:C.warning,Approved:C.teal,Rejected:C.danger};
 
-const INIT_LEAVES=[
-  {id:1,employeeName:'Aarav Sharma',employeeId:'EMP-AS-001',leaveType:'Sick Leave',fromDate:'2025-05-02',toDate:'2025-05-04',days:3,reason:'Fever and body ache, doctor advised rest for 3 days.',status:'Pending',appliedOn:'2025-04-30'},
-  {id:2,employeeName:'Priya Mehta',employeeId:'EMP-PM-002',leaveType:'Annual Leave',fromDate:'2025-05-05',toDate:'2025-05-09',days:5,reason:'Family vacation planned to Goa.',status:'Pending',appliedOn:'2025-04-28'},
-  {id:3,employeeName:'Rohit Kumar',employeeId:'EMP-RK-003',leaveType:'Personal Leave',fromDate:'2025-05-03',toDate:'2025-05-03',days:1,reason:'Personal work at bank and government office.',status:'Approved',appliedOn:'2025-04-27'},
-  {id:4,employeeName:'Neha Reddy',employeeId:'EMP-NR-004',leaveType:'Emergency Leave',fromDate:'2025-05-01',toDate:'2025-05-02',days:2,reason:'Family emergency, need to travel to hometown immediately.',status:'Approved',appliedOn:'2025-04-30'},
-  {id:5,employeeName:'Vikram Singh',employeeId:'EMP-VS-005',leaveType:'Sick Leave',fromDate:'2025-04-28',toDate:'2025-04-29',days:2,reason:'Migraine and nausea.',status:'Rejected',appliedOn:'2025-04-27'},
-  {id:6,employeeName:'Anita Gupta',employeeId:'EMP-AG-006',leaveType:'Annual Leave',fromDate:'2025-05-12',toDate:'2025-05-16',days:5,reason:'Attending a family wedding in Jaipur.',status:'Pending',appliedOn:'2025-05-01'},
-  {id:7,employeeName:'Karan Joshi',employeeId:'EMP-KJ-007',leaveType:'Personal Leave',fromDate:'2025-05-06',toDate:'2025-05-06',days:1,reason:'House shifting work.',status:'Pending',appliedOn:'2025-05-02'},
-  {id:8,employeeName:'Sneha Desai',employeeId:'EMP-SD-008',leaveType:'Sick Leave',fromDate:'2025-05-08',toDate:'2025-05-10',days:3,reason:'Dental surgery recovery.',status:'Pending',appliedOn:'2025-05-03'},
-  {id:9,employeeName:'Manish Patel',employeeId:'EMP-MP-009',leaveType:'Annual Leave',fromDate:'2025-05-19',toDate:'2025-05-23',days:5,reason:'Trip to Himachal Pradesh with friends.',status:'Pending',appliedOn:'2025-05-04'},
-  {id:10,employeeName:'Divya Nair',employeeId:'EMP-DN-010',leaveType:'Emergency Leave',fromDate:'2025-05-05',toDate:'2025-05-05',days:1,reason:'Water pipe burst at home, plumber visit required.',status:'Approved',appliedOn:'2025-05-04'},
-  {id:11,employeeName:'Aarav Sharma',employeeId:'EMP-AS-001',leaveType:'Annual Leave',fromDate:'2025-04-14',toDate:'2025-04-18',days:5,reason:'Travelling home for Baisakhi celebration.',status:'Approved',appliedOn:'2025-04-10'},
-  {id:12,employeeName:'Priya Mehta',employeeId:'EMP-PM-002',leaveType:'Sick Leave',fromDate:'2025-04-22',toDate:'2025-04-22',days:1,reason:'Severe headache.',status:'Approved',appliedOn:'2025-04-21'},
-  {id:13,employeeName:'Rohit Kumar',employeeId:'EMP-RK-003',leaveType:'Emergency Leave',fromDate:'2025-04-25',toDate:'2025-04-26',days:2,reason:'Parent hospitalized.',status:'Approved',appliedOn:'2025-04-25'},
-  {id:14,employeeName:'Karan Joshi',employeeId:'EMP-KJ-007',leaveType:'Annual Leave',fromDate:'2025-04-10',toDate:'2025-04-11',days:2,reason:'Short trip to Lonavala.',status:'Rejected',appliedOn:'2025-04-08'},
-  {id:15,employeeName:'Sneha Desai',employeeId:'EMP-SD-008',leaveType:'Personal Leave',fromDate:'2025-04-16',toDate:'2025-04-16',days:1,reason:'Passport renewal appointment.',status:'Approved',appliedOn:'2025-04-14'},
-];
-
-const ALLOCATIONS=[
-  {emp:'Aarav Sharma',annual:18,sick:10,personal:5,emergency:3},
-  {emp:'Priya Mehta',annual:18,sick:10,personal:5,emergency:3},
-  {emp:'Rohit Kumar',annual:15,sick:8,personal:4,emergency:3},
-  {emp:'Neha Reddy',annual:20,sick:10,personal:5,emergency:3},
-  {emp:'Vikram Singh',annual:12,sick:8,personal:3,emergency:2},
-];
+// Allocations fallback (only used if API doesn't provide)
+const ALLOCATIONS_FB=[];
 
 const XIco=()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 
@@ -51,7 +30,24 @@ const Styles=()=><style dangerouslySetInnerHTML={{__html:`
 const fmtDate=(d)=>new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
 
 export default function LeaveManagementView(){
-  const [leaves,setLeaves]=useState(INIT_LEAVES);
+  const { data: reqData, isLoading, error, refetch } = useTimeOffRequests();
+  const { approveRequest, rejectRequest, isApproving, isRejecting } = useTimeOffRequestMutations();
+
+  // Map API response
+  const rawReqs = reqData?.data || reqData || [];
+  const leaves = rawReqs.map(l => ({
+    id: l._id || l.id,
+    employeeName: l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName||''}`.trim() : (l.employeeName || 'Employee'),
+    employeeId: l.employee?.employeeId || l.employeeId || '—',
+    leaveType: l.leaveType || l.type || 'Leave',
+    fromDate: l.startDate || l.fromDate || '',
+    toDate: l.endDate || l.toDate || '',
+    days: l.numberOfDays || l.days || 1,
+    reason: l.reason || l.description || '',
+    status: l.status ? l.status.charAt(0).toUpperCase() + l.status.slice(1).toLowerCase() : 'Pending',
+    appliedOn: l.createdAt || l.appliedOn || '',
+  }));
+
   const [tab,setTab]=useState('all');
   const [typeF,setTypeF]=useState('All');
   const [expanded,setExpanded]=useState(null);
@@ -72,8 +68,11 @@ export default function LeaveManagementView(){
   const approved=leaves.filter(l=>l.status==='Approved').length;
   const rejected=leaves.filter(l=>l.status==='Rejected').length;
 
-  const approve=(id)=>setLeaves(ls=>ls.map(l=>l.id===id?{...l,status:'Approved'}:l));
-  const reject=(id)=>{setLeaves(ls=>ls.map(l=>l.id===id?{...l,status:'Rejected'}:l));setRejectModal(null);setRejectReason('');};
+  const approve=async(id)=>{ try { await approveRequest({ id, data: {} }); } catch(e) { console.error('Approve failed:', e); } };
+  const reject=async(id)=>{ try { await rejectRequest({ id, data: { reason: rejectReason } }); setRejectModal(null); setRejectReason(''); } catch(e) { console.error('Reject failed:', e); } };
+
+  if (isLoading) return <LoadingSpinner message="Loading leave requests..." />;
+  if (error) return <ErrorState message="Failed to load leave requests" onRetry={refetch} />;
 
   const stats=[{label:'Pending Requests',value:pending,color:C.warning},{label:'Approved',value:approved,color:C.teal},{label:'Rejected',value:rejected,color:C.danger}];
 

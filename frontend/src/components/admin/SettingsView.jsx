@@ -1,14 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSettingsUsers, useSettingsCompany, useSettingsMutations, useAuth } from '../../hooks';
+import { LoadingSpinner, ErrorState } from './shared';
 
 const C={bg:'#0A0A0F',surface:'#13131A',surfaceHover:'#1A1A24',accent:'#7C3AED',accentLight:'rgba(124,58,237,0.15)',teal:'#14B8A6',tealLight:'rgba(20,184,166,0.15)',cyan:'#06B6D4',warning:'#F59E0B',danger:'#EF4444',text:'#F1F0FF',muted:'#8B8A9B',border:'#2E2E3E'};
 
 const SECTIONS=['Company Info','Role Management','Password & Security','Notifications','Payroll Config'];
 const ICONS=['🏢','👥','🔒','🔔','💰'];
-
-const USERS=[
-  {name:'Aarav Sharma',role:'Employee'},{name:'Priya Mehta',role:'HR Officer'},{name:'Rohit Kumar',role:'Employee'},
-  {name:'Neha Reddy',role:'Employee'},{name:'Vikram Singh',role:'Payroll Officer'},{name:'Anita Gupta',role:'Employee'},
-];
 const ROLE_OPTS=['Employee','HR Officer','Payroll Officer'];
 
 const fi={background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',width:'100%',transition:'border .2s'};
@@ -37,14 +34,45 @@ const Toggle=({on,onToggle,label:lb})=>(
 );
 
 export default function SettingsView(){
+  const { data: usersData, isLoading: usersLoading } = useSettingsUsers();
+  const { data: companyData, isLoading: companyLoading } = useSettingsCompany();
+  const { updateUserRole, updateCompany, isUpdatingRole, isUpdatingCompany } = useSettingsMutations();
+
+  const USERS = (usersData?.data || usersData || []).map(u => ({
+    id: u._id || u.id,
+    name: `${u.firstName||''} ${u.lastName||''}`.trim() || u.name || 'Unknown',
+    role: u.role || 'Employee',
+  }));
+
+  const comp = companyData?.data || companyData || {};
+
   const [sec,setSec]=useState(0);
-  const [company,setCompany]=useState({name:'EmPay Technologies Pvt Ltd',address:'Vellore Institute of Technology, Vellore, Tamil Nadu 632014',email:'admin@empay.io',phone:'+91 9876543210'});
-  const [roles,setRoles]=useState(USERS.map(u=>u.role));
+  const [company,setCompany]=useState({name:'',address:'',email:'',phone:''});
+  const [roles,setRoles]=useState([]);
   const [pw,setPw]=useState({current:'',newPw:'',confirm:''});
   const [resetEmp,setResetEmp]=useState('');
   const [tfa,setTfa]=useState(false);
   const [notifs,setNotifs]=useState({leave:true,payroll:true,newEmp:false,attendance:true});
   const [payroll,setPayroll]=useState({pf:'12',tax:'200',cycle:'monthly',day:'15'});
+
+  // Sync company data from API
+  useEffect(() => {
+    if (comp.name) setCompany({ name: comp.name || '', address: comp.address || '', email: comp.email || '', phone: comp.phone || '' });
+  }, [comp.name]);
+
+  // Sync roles from API
+  useEffect(() => {
+    if (USERS.length && roles.length === 0) setRoles(USERS.map(u => u.role));
+  }, [USERS.length]);
+
+  const handleSaveCompany = async () => {
+    try { await updateCompany(company); } catch(e) { console.error('Save company failed:', e); }
+  };
+  const handleSaveRole = async (i) => {
+    try { await updateUserRole({ userId: USERS[i].id, data: { role: roles[i] } }); } catch(e) { console.error('Role update failed:', e); }
+  };
+
+  if (usersLoading || companyLoading) return <LoadingSpinner message="Loading settings..." />;
 
   return(
     <>
@@ -82,7 +110,7 @@ export default function SettingsView(){
                 <div><label style={label}>Email</label><input className="st-fi" style={fi} value={company.email} onChange={e=>setCompany(c=>({...c,email:e.target.value}))}/></div>
                 <div><label style={label}>Phone</label><input className="st-fi" style={fi} value={company.phone} onChange={e=>setCompany(c=>({...c,phone:e.target.value}))}/></div>
               </div>
-              <div style={{marginTop:24,textAlign:'right'}}><button style={saveBtn}>Save Changes</button></div>
+              <div style={{marginTop:24,textAlign:'right'}}><button onClick={handleSaveCompany} disabled={isUpdatingCompany} style={{...saveBtn,opacity:isUpdatingCompany?0.6:1}}>{isUpdatingCompany?'Saving...':'Save Changes'}</button></div>
             </div>}
 
             {/* ROLE MANAGEMENT */}
@@ -103,7 +131,7 @@ export default function SettingsView(){
                         </select>
                       </td>
                       <td style={{padding:'10px 12px',borderBottom:`1px solid ${C.border}`}}>
-                        {roles[i]!==u.role&&<button style={{background:C.teal,color:'#fff',border:'none',borderRadius:8,padding:'5px 14px',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Save</button>}
+                        {roles[i]!==u.role&&<button onClick={()=>handleSaveRole(i)} disabled={isUpdatingRole} style={{background:C.teal,color:'#fff',border:'none',borderRadius:8,padding:'5px 14px',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:isUpdatingRole?0.6:1}}>{isUpdatingRole?'Saving...':'Save'}</button>}
                       </td>
                     </tr>
                   ))}
