@@ -2,9 +2,10 @@ import { createBrowserRouter } from "react-router-dom";
 
 // Auth
 import LandingPage from "../pages/auth/LandingPage";
-import LoginPage from "../pages/auth/LoginPage";
-import CreateEmployeePage from "../pages/auth/CreateEmployeePage";
-
+import LoginPage from "../pages/auth/Login";
+// import CreateEmployeePage from "../pages/auth/CreateEmployeePage";
+import CreateEmployeePage from "../pages/auth/Register";
+import ChangePassword from "../pages/auth/ChangePassword";
 // Admin
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminEmployees from "../pages/admin/EmployeeManagement";
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
   { path: "/", element: <LandingPage /> },
   { path: "/login", element: <LoginPage /> },
   { path: "/register", element: <CreateEmployeePage /> },
+  { path: "/change-password", element: <ChangePassword /> },
 
   // Admin
   { path: "/admin/dashboard", element: <AdminDashboard /> },

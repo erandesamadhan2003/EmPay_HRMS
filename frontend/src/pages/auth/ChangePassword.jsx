@@ -177,7 +177,13 @@ export default function ChangePassword() {
       setLoading(false);
       setSuccess(true);
       setTimeout(() => {
-        navigate("/"); // Change to dashboard route when ready
+        const userStr = localStorage.getItem("user");
+        const role = userStr ? JSON.parse(userStr).role : null;
+        if (role === "admin" || role === "super_admin") navigate("/admin/dashboard");
+        else if (role === "hr") navigate("/hr/dashboard");
+        else if (role === "payroll") navigate("/payroll/dashboard");
+        else if (role === "employee") navigate("/employee/dashboard");
+        else navigate("/");
       }, 1500);
     } catch (err) {
       setLoading(false);

@@ -200,8 +200,13 @@ export default function Login() {
         if (mustChange) {
           navigate("/change-password");
         } else {
-          // Temporarily redirect to root until dashboard is built
-          navigate("/"); 
+          const userStr = localStorage.getItem("user");
+          const role = userStr ? JSON.parse(userStr).role : null;
+          if (role === "admin" || role === "super_admin") navigate("/admin/dashboard");
+          else if (role === "hr") navigate("/hr/dashboard");
+          else if (role === "payroll") navigate("/payroll/dashboard");
+          else if (role === "employee") navigate("/employee/dashboard");
+          else navigate("/");
         }
       }, 1000);
     } catch (err) {
