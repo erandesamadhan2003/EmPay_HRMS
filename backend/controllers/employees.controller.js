@@ -33,6 +33,15 @@ import {
 	normalizeProfilePATCH,
 	normalizeSelfProfilePATCH,
 } from "../utils/serializer.js";
+import {
+	cacheWrapper,
+	getEmployeeDirectoryCacheKey,
+	getUserProfileCacheKey,
+	getUserCacheKey,
+	invalidateEmployeeCache,
+	invalidateUserCache,
+	CACHE_EXPIRY,
+} from "../utils/redisCache.js";
 
 function requireCompany(req, res) {
 	const cid = req.user?.company_id;
@@ -56,25 +65,29 @@ export async function getEmployees(req, res) {
 			status: req.query.status || "active",
 		};
 
-		const offset = (page - 1) * limit;
-		const total = await countEmployeesDirectory(req.db, companyId, filters);
-		const rows = await listEmployeesDirectory(
-			req.db,
-			companyId,
-			filters,
-			limit,
-			offset,
-		);
+		const cacheKey = getEmployeeDirectoryCacheKey(companyId, page, limit, filters);
+		const cached = await cacheWrapper(
+			cacheKey,
+			async () => {
+				const offset = (page - 1) * limit;
+				const total = await countEmployeesDirectory(req.db, companyId, filters);
+				const rows = await listEmployeesDirectory(
+					req.db,
+					companyId,
+					filters,
+					limit,
+					offset,
+				);
 
-		return res.json(
-			successResponse(
-				serializePagination(
+				return serializePagination(
 					rows.map(serializeEmployeeDirectoryItem),
 					paginationMeta({ page, limit, total }),
-				),
-				"Employees fetched",
-			),
+				);
+			},
+			CACHE_EXPIRY.EMPLOYEE,
 		);
+
+		return res.json(successResponse(cached, "Employees fetched"));
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json(errorResponse("Unable to list employees"));
@@ -125,7 +138,7 @@ export async function createEmployee(req, res) {
 		const normalizedRole =
 			role === "payroll_officer" || role === "hr_officer" || role === "admin" ?
 				role
-			:	"employee";
+				: "employee";
 
 		const user = await createUser(client, {
 			companyId,
@@ -172,6 +185,9 @@ export async function createEmployee(req, res) {
 		await updateUserLoginId(client, user.id, loginId);
 
 		await client.query("COMMIT");
+
+		// Invalidate employee cache for this company
+		await invalidateEmployeeCache(companyId);
 
 		return res.status(201).json(
 			successResponse(

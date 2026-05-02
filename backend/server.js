@@ -23,6 +23,7 @@ import auditLogsRoutes from './routes/auditLogs.routes.js';
 import agentRoutes from './routes/agent.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
+import redisClient from './config/redis.js';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
 dotenv.config();
@@ -34,6 +35,7 @@ const app = express();
 app.use(express.json());
 app.use((req, res, next) => {
     req.db = pool;
+    req.redis = redisClient;
     next();
 });
 
@@ -41,9 +43,9 @@ app.use(cors());
 
 // Swagger UI (`serve` is an array — spread it; do not add a separate /api/docs redirect or static + slash fight causes ERR_TOO_MANY_REDIRECTS)
 app.use(
-	"/api/docs",
-	...swaggerUi.serve,
-	swaggerUi.setup(openApiSpec, { customSiteTitle: "EmPay API" }),
+    "/api/docs",
+    ...swaggerUi.serve,
+    swaggerUi.setup(openApiSpec, { customSiteTitle: "EmPay API" }),
 );
 
 app.use('/api/auth', authRoutes);

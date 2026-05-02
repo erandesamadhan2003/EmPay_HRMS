@@ -11,6 +11,7 @@ import { generateAccountVerifiedTemplate } from "../templates/accountVerifiedEma
 import { generateAccountRejectedTemplate } from "../templates/accountRejectedEmail.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
 import { serializePagination } from "../utils/serializer.js";
+import { cacheWrapper, CACHE_EXPIRY } from "../utils/redisCache.js";
 
 export async function reviewCompanyRequest(req, res) {
 	try {
@@ -92,34 +93,50 @@ export async function listCompanyRequests(req, res) {
 	try {
 		const { page, limit } = parseListQuery(req.query);
 		const { status } = req.query;
-		const { rows, total } = await listCompanyRequestsPaged(req.db, {
-			page,
-			limit,
-			status,
-		});
 
-		const items = rows.map((r) => ({
-			id: r.id,
-			companyId: r.company_id,
-			status: r.status,
-			reviewedBy: r.reviewed_by,
-			reviewedAt: r.reviewed_at,
-			reviewerNotes: r.reviewer_notes,
-			companyName: r.company_name,
-			employee: r.admin_login_id ?
-				{
-					id: r.admin_user_id,
-					name: r.admin_name,
-					email: r.admin_email,
-					loginId: r.admin_login_id,
-				}
-				: { id: r.admin_user_id, name: r.admin_name, email: r.admin_email },
-			createdAt: r.created_at,
-		}));
+		// Create cache key based on query parameters
+		const cacheKey = `superadmin:requests:${status || 'pending'}:${limit}:${page}`;
+
+		// Try to get from cache first
+		const cached = await cacheWrapper(
+			cacheKey,
+			async () => {
+				const { rows, total } = await listCompanyRequestsPaged(req.db, {
+					page,
+					limit,
+					status,
+				});
+
+				const items = rows.map((r) => ({
+					id: r.id,
+					companyId: r.company_id,
+					status: r.status,
+					reviewedBy: r.reviewed_by,
+					reviewedAt: r.reviewed_at,
+					reviewerNotes: r.reviewer_notes,
+					companyName: r.company_name,
+					employee: r.admin_login_id ?
+						{
+							id: r.admin_user_id,
+							name: r.admin_name,
+							email: r.admin_email,
+							loginId: r.admin_login_id,
+						}
+						: { id: r.admin_user_id, name: r.admin_name, email: r.admin_email },
+					createdAt: r.created_at,
+				}));
+
+				return {
+					items,
+					meta: paginationMeta({ page, limit, total })
+				};
+			},
+			120 // 2 minutes cache TTL
+		);
 
 		return res.json(
 			successResponse(
-				serializePagination(items, paginationMeta({ page, limit, total })),
+				serializePagination(cached.items, cached.meta),
 				"Company requests fetched",
 			),
 		);
@@ -131,29 +148,39 @@ export async function listCompanyRequests(req, res) {
 
 export async function getDashboardStats(req, res) {
 	try {
-		const { rows: stats } = await req.db.query(`
-			SELECT 
-				(SELECT COUNT(*) FROM companies)::int as total_companies,
-				(SELECT COUNT(*) FROM users WHERE is_active = TRUE AND role = 'admin')::int as active_companies,
-				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending_requests,
-				(SELECT COUNT(*) FROM users WHERE role::text <> 'superadmin')::int as total_users
-		`);
+		// Try to get from cache first
+		const cacheKey = 'superadmin:dashboard:stats';
+		const cached = await cacheWrapper(
+			cacheKey,
+			async () => {
+				const { rows: stats } = await req.db.query(`
+					SELECT 
+						(SELECT COUNT(*) FROM companies)::int as total_companies,
+						(SELECT COUNT(*) FROM users WHERE is_active = TRUE AND role = 'admin')::int as active_companies,
+						(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending_requests,
+						(SELECT COUNT(*) FROM users WHERE role::text <> 'superadmin')::int as total_users
+				`);
 
-		const data = {
-			totalCompanies: parseInt(stats[0].total_companies),
-			activeCompanies: parseInt(stats[0].active_companies),
-			pendingRequests: parseInt(stats[0].pending_requests),
-			totalUsers: parseInt(stats[0].total_users),
-			trends: {
-				companies: '+4% this month',
-				active: '+2% this month',
-				pending: '-5% from yesterday',
-				users: '+12% this week'
+				const data = {
+					totalCompanies: parseInt(stats[0].total_companies),
+					activeCompanies: parseInt(stats[0].active_companies),
+					pendingRequests: parseInt(stats[0].pending_requests),
+					totalUsers: parseInt(stats[0].total_users),
+					trends: {
+						companies: '+4% this month',
+						active: '+2% this month',
+						pending: '-5% from yesterday',
+						users: '+12% this week'
+					},
+					trendUp: { companies: true, active: true, pending: false, users: true }
+				};
+
+				return data;
 			},
-			trendUp: { companies: true, active: true, pending: false, users: true }
-		};
+			120 // 2 minutes TTL
+		);
 
-		return res.json(successResponse(data, "Dashboard stats fetched"));
+		return res.json(successResponse(cached, "Dashboard stats fetched"));
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json(errorResponse("Unable to fetch platform stats"));
@@ -162,16 +189,24 @@ export async function getDashboardStats(req, res) {
 
 export async function getGrowthAnalytics(req, res) {
 	try {
-		// Mocked growth data for now as we don't have historical snapshots
-		const data = [
-			{ month: 'Jan', newCompanies: 4, activeUsers: 120 },
-			{ month: 'Feb', newCompanies: 7, activeUsers: 250 },
-			{ month: 'Mar', newCompanies: 5, activeUsers: 310 },
-			{ month: 'Apr', newCompanies: 12, activeUsers: 480 },
-			{ month: 'May', newCompanies: 18, activeUsers: 720 },
-			{ month: 'Jun', newCompanies: 15, activeUsers: 850 }
-		];
-		return res.json(successResponse(data, "Growth analytics fetched"));
+		const cacheKey = 'superadmin:analytics:growth';
+		const cached = await cacheWrapper(
+			cacheKey,
+			async () => {
+				// Mocked growth data for now as we don't have historical snapshots
+				const data = [
+					{ month: 'Jan', newCompanies: 4, activeUsers: 120 },
+					{ month: 'Feb', newCompanies: 7, activeUsers: 250 },
+					{ month: 'Mar', newCompanies: 5, activeUsers: 310 },
+					{ month: 'Apr', newCompanies: 12, activeUsers: 480 },
+					{ month: 'May', newCompanies: 18, activeUsers: 720 },
+					{ month: 'Jun', newCompanies: 15, activeUsers: 850 }
+				];
+				return data;
+			},
+			600 // 10 minutes TTL
+		);
+		return res.json(successResponse(cached, "Growth analytics fetched"));
 	} catch (err) {
 		return res.status(500).json(errorResponse("Unable to fetch growth data"));
 	}
@@ -179,13 +214,21 @@ export async function getGrowthAnalytics(req, res) {
 
 export async function getHealthAnalytics(req, res) {
 	try {
-		const data = {
-			uptime: '99.99%',
-			avgResponseTime: '105ms',
-			totalApiCalls: '1.4M',
-			errorRate: '0.03%'
-		};
-		return res.json(successResponse(data, "Health analytics fetched"));
+		const cacheKey = 'superadmin:analytics:health';
+		const cached = await cacheWrapper(
+			cacheKey,
+			async () => {
+				const data = {
+					uptime: '99.99%',
+					avgResponseTime: '105ms',
+					totalApiCalls: '1.4M',
+					errorRate: '0.03%'
+				};
+				return data;
+			},
+			300 // 5 minutes TTL
+		);
+		return res.json(successResponse(cached, "Health analytics fetched"));
 	} catch (err) {
 		return res.status(500).json(errorResponse("Unable to fetch health data"));
 	}
@@ -193,25 +236,36 @@ export async function getHealthAnalytics(req, res) {
 
 export async function getPlatformActivity(req, res) {
 	try {
-		const { rows } = await req.db.query(`
-			SELECT a.id, a.action, a.created_at, u.name as actor_name, u.role as actor_role
-			FROM audit_logs a
-			JOIN users u ON a.actor_id = u.id
-			ORDER BY a.created_at DESC
-			LIMIT $1
-		`, [req.query.limit || 6]);
+		const limit = req.query.limit || 6;
+		const cacheKey = `superadmin:activity:limit:${limit}`;
 
-		const activities = rows.map(r => ({
-			id: r.id,
-			action: r.action,
-			by: r.actor_name,
-			time: r.created_at,
-			type: r.action.toLowerCase().includes('reject') ? 'rejected' :
-				r.action.toLowerCase().includes('approve') ? 'approved' :
-					r.action.toLowerCase().includes('suspend') ? 'suspended' : 'registered'
-		}));
+		const cached = await cacheWrapper(
+			cacheKey,
+			async () => {
+				const { rows } = await req.db.query(`
+					SELECT a.id, a.action, a.created_at, u.name as actor_name, u.role as actor_role
+					FROM audit_logs a
+					JOIN users u ON a.actor_id = u.id
+					ORDER BY a.created_at DESC
+					LIMIT $1
+				`, [limit]);
 
-		return res.json(successResponse(activities, "Platform activity fetched"));
+				const activities = rows.map(r => ({
+					id: r.id,
+					action: r.action,
+					by: r.actor_name,
+					time: r.created_at,
+					type: r.action.toLowerCase().includes('reject') ? 'rejected' :
+						r.action.toLowerCase().includes('approve') ? 'approved' :
+							r.action.toLowerCase().includes('suspend') ? 'suspended' : 'registered'
+				}));
+
+				return activities;
+			},
+			300 // 5 minutes TTL
+		);
+
+		return res.json(successResponse(cached, "Platform activity fetched"));
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json(errorResponse("Unable to fetch activity"));
@@ -220,24 +274,31 @@ export async function getPlatformActivity(req, res) {
 
 export async function getAnalyticsByStatus(req, res) {
 	try {
-		const { rows } = await req.db.query(`
-			SELECT 
-				(SELECT COUNT(*) FROM company_requests WHERE status = 'active')::int as active,
-				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending,
-				(SELECT COUNT(*) FROM company_requests WHERE status = 'suspended')::int as suspended,
-				(SELECT COUNT(*) FROM company_requests WHERE status = 'rejected')::int as rejected
-		`);
-		// Since companies table doesn't have status, we use requests as proxy or count active companies separately
-		const { rows: activeCount } = await req.db.query("SELECT COUNT(*) FROM companies");
+		const cacheKey = 'superadmin:analytics:status';
+		const cached = await cacheWrapper(
+			cacheKey,
+			async () => {
+				const { rows } = await req.db.query(`
+					SELECT 
+						(SELECT COUNT(*) FROM company_requests WHERE status = 'approved')::int as approved,
+						(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending,
+						(SELECT COUNT(*) FROM company_requests WHERE status = 'rejected')::int as rejected
+				`);
 
-		const data = {
-			active: parseInt(activeCount[0].count),
-			pending: parseInt(rows[0].pending),
-			suspended: parseInt(rows[0].suspended || 0),
-			rejected: parseInt(rows[0].rejected || 0)
-		};
-		return res.json(successResponse(data, "Status analytics fetched"));
+				const data = {
+					active: parseInt(rows[0].approved || 0),      // 'approved' requests shown as 'active'
+					pending: parseInt(rows[0].pending || 0),
+					suspended: 0,                                  // No 'suspended' status in enum, default to 0
+					rejected: parseInt(rows[0].rejected || 0)
+				};
+				return data;
+			},
+			120 // 2 minutes TTL
+		);
+
+		return res.json(successResponse(cached, "Status analytics fetched"));
 	} catch (err) {
+		console.error("[ERROR] getAnalyticsByStatus:", err.message);
 		return res.status(500).json(errorResponse("Unable to fetch status data"));
 	}
 }
