@@ -1,9 +1,10 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 // Auth
 import LandingPage from "../pages/auth/LandingPage";
 import LoginPage from "../pages/auth/Login";
-import CreateEmployeePage from "../pages/auth/Register"; 
+import CreateEmployeePage from "../pages/auth/Register";
 import ChangePassword from "../pages/auth/ChangePassword";
 
 // Admin
@@ -52,60 +53,415 @@ import SuperAdminCompanies from "../pages/superadmin/CompaniesManagement";
 import SuperAdminAuditLogs from "../pages/superadmin/AuditLogs";
 import SuperAdminProfile from "../pages/superadmin/Profile";
 
+// Protected Route Component
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShouldRender(true);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!shouldRender) {
+    return null;
+  }
+
+  const token = localStorage.getItem("token");
+  const userStr = localStorage.getItem("user");
+
+  if (!token || !userStr) {
+    return <Navigate to="/login" replace />;
+  }
+
+  try {
+    const user = JSON.parse(userStr);
+
+    // Force password change if required
+    if (user.must_change_pwd && window.location.pathname !== "/change-password") {
+      return <Navigate to="/change-password" replace />;
+    }
+
+    // Check role-based access
+    if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      const roleDashboards = {
+        superadmin: "/superadmin/dashboard",
+        admin: "/admin/dashboard",
+        hr: "/hr/dashboard",
+        payroll: "/payroll/dashboard",
+        employee: "/employee/dashboard",
+      };
+
+      const redirectPath = roleDashboards[user.role] || "/login";
+      return <Navigate to={redirectPath} replace />;
+    }
+
+    return children;
+  } catch (error) {
+    console.error("Auth check failed:", error);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    return <Navigate to="/login" replace />;
+  }
+};
+
+// Public Route Component
+const PublicRoute = ({ children }) => {
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShouldRender(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!shouldRender) {
+    return null;
+  }
+
+  const token = localStorage.getItem("token");
+  const userStr = localStorage.getItem("user");
+
+  if (token && userStr) {
+    try {
+      const user = JSON.parse(userStr);
+
+      // If user must change password, redirect to change-password
+      if (user.must_change_pwd) {
+        return <Navigate to="/change-password" replace />;
+      }
+
+      // Redirect to appropriate dashboard based on role
+      const roleDashboards = {
+        superadmin: "/superadmin/dashboard",
+        admin: "/admin/dashboard",
+        hr: "/hr/dashboard",
+        payroll: "/payroll/dashboard",
+        employee: "/employee/dashboard",
+      };
+
+      const redirectPath = roleDashboards[user.role] || "/employee/dashboard";
+      return <Navigate to={redirectPath} replace />;
+    } catch (error) {
+      console.error("Error parsing user data:", error);
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    }
+  }
+
+  return children;
+};
 
 const router = createBrowserRouter([
-  // Public / Auth
-  { path: "/", element: <LandingPage /> },
-  { path: "/login", element: <LoginPage /> },
-  { path: "/register", element: <CreateEmployeePage /> },
-  { path: "/change-password", element: <ChangePassword /> },
+  // Public / Auth Routes
+  {
+    path: "/",
+    element: (
+      <PublicRoute>
+        <LandingPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: "/login",
+    element: (
+      <PublicRoute>
+        <LoginPage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: "/register",
+    element: (
+      <PublicRoute>
+        <CreateEmployeePage />
+      </PublicRoute>
+    ),
+  },
+  {
+    path: "/change-password",
+    element: (
+      <ProtectedRoute allowedRoles={["admin", "hr", "payroll", "employee", "superadmin"]}>
+        <ChangePassword />
+      </ProtectedRoute>
+    ),
+  },
+  // Admin Routes
+  {
+    path: "/admin/dashboard",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/employees",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminEmployees />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/departments",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminDepartments />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/attendance",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminAttendance />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/leaves",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminLeaves />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/payroll",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminPayroll />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/reports",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminReports />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/settings",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminSettings />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/profile",
+    element: (
+      <ProtectedRoute allowedRoles={["admin"]}>
+        <AdminProfile />
+      </ProtectedRoute>
+    ),
+  },
 
-  // Admin
-  { path: "/admin/dashboard", element: <AdminDashboard /> },
-  { path: "/admin/employees", element: <AdminEmployees /> },
-  { path: "/admin/departments", element: <AdminDepartments /> },
-  { path: "/admin/attendance", element: <AdminAttendance /> },
-  { path: "/admin/leaves", element: <AdminLeaves /> },
-  { path: "/admin/payroll", element: <AdminPayroll /> },
-  { path: "/admin/reports", element: <AdminReports /> },
-  { path: "/admin/settings", element: <AdminSettings /> },
-  { path: "/admin/assistant", element: <AdminAssistant /> },
-  { path: "/admin/profile", element: <AdminProfile /> },
+  // HR Routes
+  {
+    path: "/hr/dashboard",
+    element: (
+      <ProtectedRoute allowedRoles={["hr"]}>
+        <HRDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr/employees",
+    element: (
+      <ProtectedRoute allowedRoles={["hr"]}>
+        <HREmployees />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr/attendance",
+    element: (
+      <ProtectedRoute allowedRoles={["hr"]}>
+        <HRAttendance />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr/leave-allocation",
+    element: (
+      <ProtectedRoute allowedRoles={["hr"]}>
+        <HRLeaveAllocation />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr/leave-requests",
+    element: (
+      <ProtectedRoute allowedRoles={["hr"]}>
+        <HRLeaveRequests />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr/profile",
+    element: (
+      <ProtectedRoute allowedRoles={["hr"]}>
+        <HRProfile />
+      </ProtectedRoute>
+    ),
+  },
 
-  // HR
-  { path: "/hr/dashboard", element: <HRDashboard /> },
-  { path: "/hr/employees", element: <HREmployees /> },
-  { path: "/hr/attendance", element: <HRAttendance /> },
-  { path: "/hr/leave-allocation", element: <HRLeaveAllocation /> },
-  { path: "/hr/leave-requests", element: <HRLeaveRequests /> },
-  { path: "/hr/assistant", element: <HRAssistant /> },
-  { path: "/hr/profile", element: <HRProfile /> },
+  // Payroll Routes
+  {
+    path: "/payroll/dashboard",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll"]}>
+        <PayrollDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payroll/management",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll"]}>
+        <PayrollManagement />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payroll/payslips",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll"]}>
+        <PayrollPayslips />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payroll/salary",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll"]}>
+        <PayrollSalary />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payroll/leaves",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll"]}>
+        <PayrollLeaves />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payroll/reports",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll"]}>
+        <PayrollReports />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payroll/profile",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll"]}>
+        <PayrollProfile />
+      </ProtectedRoute>
+    ),
+  },
 
-  // Payroll
-  { path: "/payroll/dashboard", element: <PayrollDashboard /> },
-  { path: "/payroll/manage", element: <PayrollManagement /> },
-  { path: "/payroll/payslips", element: <PayrollPayslips /> },
-  { path: "/payroll/salary", element: <PayrollSalary /> },
-  { path: "/payroll/leave-requests", element: <PayrollLeaves /> },
-  { path: "/payroll/reports", element: <PayrollReports /> },
-  { path: "/payroll/profile", element: <PayrollProfile /> },
+  // Employee Routes
+  {
+    path: "/employee/dashboard",
+    element: (
+      <ProtectedRoute allowedRoles={["employee"]}>
+        <EmpDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/employee/attendance",
+    element: (
+      <ProtectedRoute allowedRoles={["employee"]}>
+        <EmpAttendance />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/employee/apply-leave",
+    element: (
+      <ProtectedRoute allowedRoles={["employee"]}>
+        <EmpApplyLeave />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/employee/my-leaves",
+    element: (
+      <ProtectedRoute allowedRoles={["employee"]}>
+        <EmpMyLeaves />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/employee/payslips",
+    element: (
+      <ProtectedRoute allowedRoles={["employee"]}>
+        <EmpPayslips />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/employee/profile",
+    element: (
+      <ProtectedRoute allowedRoles={["employee"]}>
+        <EmpProfile />
+      </ProtectedRoute>
+    ),
+  },
 
-  // Employee
-  { path: "/employee/dashboard", element: <EmpDashboard /> },
-  { path: "/employee/attendance", element: <EmpAttendance /> },
-  { path: "/employee/apply-leave", element: <EmpApplyLeave /> },
-  { path: "/employee/my-leaves", element: <EmpMyLeaves /> },
-  { path: "/employee/payslips", element: <EmpPayslips /> },
-  { path: "/employee/assistant", element: <EmpAssistant /> },
-  { path: "/employee/profile", element: <EmpProfile /> },
-
-  // Super Admin
-  { path: "/superadmin/dashboard", element: <SuperAdminDashboard /> },
-  { path: "/superadmin/company-requests", element: <SuperAdminRequests /> },
-  { path: "/superadmin/companies", element: <SuperAdminCompanies /> },
-  { path: "/superadmin/audit-logs", element: <SuperAdminAuditLogs /> },
-  { path: "/superadmin/profile", element: <SuperAdminProfile /> },
-
+  // Super Admin Routes
+  {
+    path: "/superadmin/dashboard",
+    element: (
+      <ProtectedRoute allowedRoles={["superadmin"]}>
+        <SuperAdminDashboard />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/superadmin/company-requests",
+    element: (
+      <ProtectedRoute allowedRoles={["superadmin"]}>
+        <SuperAdminRequests />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/superadmin/companies",
+    element: (
+      <ProtectedRoute allowedRoles={["superadmin"]}>
+        <SuperAdminCompanies />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/superadmin/audit-logs",
+    element: (
+      <ProtectedRoute allowedRoles={["superadmin"]}>
+        <SuperAdminAuditLogs />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/superadmin/profile",
+    element: (
+      <ProtectedRoute allowedRoles={["superadmin"]}>
+        <SuperAdminProfile />
+      </ProtectedRoute>
+    ),
+  },
 ]);
 
 export default router;
