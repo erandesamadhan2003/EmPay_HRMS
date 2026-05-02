@@ -7,7 +7,7 @@ import employeesRoutes from './routes/employees.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
 import bcrypt from 'bcrypt';
-
+import cors from 'cors';
 dotenv.config();
 
 const app = express();
@@ -16,6 +16,8 @@ app.use((req, res, next) => {
     req.db = pool;
     next();
 });
+
+app.use(cors());
 
 app.use('/api', authRoutes);
 app.use('/api', superAdminRoutes);

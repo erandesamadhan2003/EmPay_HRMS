@@ -22,10 +22,6 @@ const KEYFRAMES = `
     from { opacity: 0; }
     to { opacity: 1; }
   }
-  @keyframes loginFadeUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
   @keyframes loginShake {
     0%, 100% { transform: translateX(0); }
     20% { transform: translateX(-8px); }
@@ -42,17 +38,9 @@ const KEYFRAMES = `
     60% { transform: scale(1.2); opacity: 1; }
     100% { transform: scale(1); opacity: 1; }
   }
-  @keyframes loginFloat1 {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-12px); }
-  }
-  @keyframes loginFloat2 {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-16px); }
-  }
-  @keyframes loginFloat3 {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+  @keyframes loginStrokeDraw {
+    from { stroke-dashoffset: 24; }
+    to { stroke-dashoffset: 0; }
   }
   @keyframes loginParticleFloat {
     0% { transform: translateY(0) translateX(0); opacity: 0.3; }
@@ -64,10 +52,6 @@ const KEYFRAMES = `
   @keyframes loginGlowPulse {
     0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
     50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.08); }
-  }
-  @keyframes loginStrokeDraw {
-    from { stroke-dashoffset: 24; }
-    to { stroke-dashoffset: 0; }
   }
 `;
 
@@ -143,16 +127,20 @@ function EyeIcon({ open }) {
   );
 }
 
-export default function Login() {
+export default function ChangePassword() {
   const navigate = useNavigate();
-  const [loginId, setLoginId] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState({});
   const [success, setSuccess] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [stageReady, setStageReady] = useState([false, false, false, false, false, false, false, false]);
 
   useEffect(() => {
     const link = document.createElement("link");
@@ -162,20 +150,7 @@ export default function Login() {
 
     setMounted(true);
 
-    const timers = [];
-    const delays = [100, 250, 400, 550, 700, 850, 1000, 1150];
-    delays.forEach((d, i) => {
-      timers.push(setTimeout(() => {
-        setStageReady((prev) => {
-          const next = [...prev];
-          next[i] = true;
-          return next;
-        });
-      }, d));
-    });
-
     return () => {
-      timers.forEach(clearTimeout);
       if (link.parentNode) link.parentNode.removeChild(link);
     };
   }, []);
@@ -183,40 +158,34 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
-    if (!loginId.trim()) newErrors.loginId = "Login ID is required";
-    if (!password.trim()) newErrors.password = "Password is required";
+    if (!currentPassword.trim()) newErrors.currentPassword = "Original password is required";
+    if (!newPassword.trim()) newErrors.newPassword = "New password is required";
+    else if (newPassword.length < 6) newErrors.newPassword = "Password must be at least 6 characters";
+    if (!confirmPassword.trim()) newErrors.confirmPassword = "Confirm password is required";
+    else if (newPassword !== confirmPassword) newErrors.confirmPassword = "Passwords do not match";
+    
     setError(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     setLoading(true);
     try {
-      const response = await authService.login({ login_id: loginId, password });
+      await authService.changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
       setLoading(false);
       setSuccess(true);
-      
-      const mustChange = response?.data?.must_change_pwd || response?.must_change_pwd;
-      
       setTimeout(() => {
-        if (mustChange) {
-          navigate("/change-password");
-        } else {
-          // Temporarily redirect to root until dashboard is built
-          navigate("/"); 
-        }
-      }, 1000);
+        navigate("/"); // Change to dashboard route when ready
+      }, 1500);
     } catch (err) {
       setLoading(false);
-      setError({ submit: err.response?.data?.message || err.message || "Login failed" });
+      setError({ submit: err.response?.data?.message || err.message || "Failed to change password" });
     }
   };
 
   const base = { fontFamily: "Poppins, sans-serif", color: C.text };
-
-  const featurePills = [
-    { label: "Face Auth Enabled", color: C.accent, delay: "0s" },
-    { label: "Auto Payroll", color: C.cyan, delay: "0.3s" },
-    { label: "Leave Tracking", color: "#10B981", delay: "0.6s" },
-  ];
 
   const inputBase = {
     width: "100%",
@@ -266,7 +235,6 @@ export default function Login() {
             : {}),
         }}
       >
-        {/* Radial glow blob */}
         <div style={{
           position: "absolute",
           top: "50%",
@@ -280,10 +248,8 @@ export default function Login() {
           animation: "loginGlowPulse 5s ease-in-out infinite",
         }} />
 
-        {/* Floating dot particles */}
         <FloatingParticles />
 
-        {/* Logo */}
         <div style={{
           position: "relative",
           zIndex: 2,
@@ -300,58 +266,24 @@ export default function Login() {
           }}>
             EmPay
           </div>
-
-          {/* Tagline */}
           <div style={{
             fontSize: 28,
             fontWeight: 600,
             color: C.text,
-            marginBottom: 48,
+            marginBottom: 24,
             opacity: 0.92,
           }}>
-            Smart HR. Simplified.
+            Secure Your Account
           </div>
-
-          {/* Feature pills */}
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            alignItems: "center",
+          <p style={{
+            fontSize: 15,
+            color: C.muted,
+            fontWeight: 400,
+            maxWidth: 320,
+            lineHeight: 1.6,
           }}>
-            {featurePills.map((pill, i) => (
-              <div
-                key={pill.label}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  background: `rgba(20,184,166,0.06)`,
-                  border: `1px solid ${C.border}`,
-                  borderRadius: 24,
-                  padding: "10px 22px",
-                  animation: `loginFloat${i + 1} ${3.2 + i * 0.4}s ease-in-out ${pill.delay} infinite`,
-                }}
-              >
-                <div style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: pill.color,
-                  boxShadow: `0 0 10px ${pill.color}`,
-                  flexShrink: 0,
-                }} />
-                <span style={{
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: C.text,
-                  letterSpacing: "0.02em",
-                }}>
-                  {pill.label}
-                </span>
-              </div>
-            ))}
-          </div>
+            For your security, you must change your password before accessing the system.
+          </p>
         </div>
       </div>
 
@@ -371,12 +303,7 @@ export default function Login() {
         }}
       >
         <div style={{ width: "100%", maxWidth: 400 }}>
-          {/* EmPay wordmark */}
-          <div style={{
-            opacity: stageReady[0] ? 1 : 0,
-            transform: stageReady[0] ? "translateY(0)" : "translateY(18px)",
-            transition: "opacity 0.4s ease, transform 0.4s ease",
-          }}>
+          <div>
             <div style={{
               fontSize: 20,
               fontWeight: 700,
@@ -387,21 +314,13 @@ export default function Login() {
             }}>
               EmPay
             </div>
-          </div>
-
-          {/* Heading */}
-          <div style={{
-            opacity: stageReady[1] ? 1 : 0,
-            transform: stageReady[1] ? "translateY(0)" : "translateY(18px)",
-            transition: "opacity 0.4s ease, transform 0.4s ease",
-          }}>
             <h1 style={{
               fontSize: 28,
               fontWeight: 600,
               marginBottom: 8,
               lineHeight: 1.2,
             }}>
-              Welcome back
+              Change Password
             </h1>
             <p style={{
               fontSize: 14,
@@ -409,172 +328,100 @@ export default function Login() {
               fontWeight: 400,
               marginBottom: 36,
             }}>
-              Sign in to your workspace
+              Please set a new password to continue
             </p>
           </div>
 
           {/* FORM */}
           <form onSubmit={handleSubmit} style={{ width: "100%" }}>
-            {/* Login ID field */}
-            <div style={{
-              marginBottom: 22,
-              opacity: stageReady[2] ? 1 : 0,
-              transform: stageReady[2] ? "translateY(0)" : "translateY(18px)",
-              transition: "opacity 0.4s ease, transform 0.4s ease",
-            }}>
-              <label style={{
-                display: "block",
-                fontSize: 13,
-                fontWeight: 500,
-                color: C.text,
-                marginBottom: 8,
-              }}>
-                Login ID / Email
+            
+            {/* Original Password */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 8 }}>
+                Original Password
               </label>
-              <div style={{
-                animation: error.loginId ? "loginShake 0.3s ease" : "none",
-              }}>
+              <div style={{ position: "relative", animation: error.currentPassword ? "loginShake 0.3s ease" : "none" }}>
                 <input
-                  id="login-id-input"
-                  type="text"
-                  placeholder="e.g. OIJODO20220001"
-                  value={loginId}
+                  type={showCurrent ? "text" : "password"}
+                  placeholder="Enter current password"
+                  value={currentPassword}
                   onChange={(e) => {
-                    setLoginId(e.target.value);
-                    if (error.loginId) setError((prev) => ({ ...prev, loginId: "" }));
+                    setCurrentPassword(e.target.value);
+                    if (error.currentPassword) setError((prev) => ({ ...prev, currentPassword: "" }));
                   }}
-                  style={{
-                    ...inputBase,
-                    borderColor: error.loginId ? "#EF4444" : C.border,
-                  }}
-                  onFocus={(e) => {
-                    if (!error.loginId) {
-                      e.target.style.borderColor = inputFocusStyle.borderColor;
-                      e.target.style.boxShadow = inputFocusStyle.boxShadow;
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (!error.loginId) {
-                      e.target.style.borderColor = C.border;
-                      e.target.style.boxShadow = "none";
-                    }
-                  }}
-                />
-              </div>
-              {error.loginId && (
-                <div style={{
-                  fontSize: 12,
-                  color: "#EF4444",
-                  marginTop: 6,
-                  fontWeight: 400,
-                }}>
-                  {error.loginId}
-                </div>
-              )}
-            </div>
-
-            {/* Password field */}
-            <div style={{
-              marginBottom: 12,
-              opacity: stageReady[3] ? 1 : 0,
-              transform: stageReady[3] ? "translateY(0)" : "translateY(18px)",
-              transition: "opacity 0.4s ease, transform 0.4s ease",
-            }}>
-              <label style={{
-                display: "block",
-                fontSize: 13,
-                fontWeight: 500,
-                color: C.text,
-                marginBottom: 8,
-              }}>
-                Password
-              </label>
-              <div style={{
-                position: "relative",
-                animation: error.password ? "loginShake 0.3s ease" : "none",
-              }}>
-                <input
-                  id="login-password-input"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (error.password) setError((prev) => ({ ...prev, password: "" }));
-                  }}
-                  style={{
-                    ...inputBase,
-                    paddingRight: 48,
-                    borderColor: error.password ? "#EF4444" : C.border,
-                  }}
-                  onFocus={(e) => {
-                    if (!error.password) {
-                      e.target.style.borderColor = inputFocusStyle.borderColor;
-                      e.target.style.boxShadow = inputFocusStyle.boxShadow;
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (!error.password) {
-                      e.target.style.borderColor = C.border;
-                      e.target.style.boxShadow = "none";
-                    }
-                  }}
+                  style={{ ...inputBase, paddingRight: 48, borderColor: error.currentPassword ? "#EF4444" : C.border }}
+                  onFocus={(e) => { if (!error.currentPassword) { e.target.style.borderColor = inputFocusStyle.borderColor; e.target.style.boxShadow = inputFocusStyle.boxShadow; } }}
+                  onBlur={(e) => { if (!error.currentPassword) { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; } }}
                 />
                 <button
                   type="button"
-                  id="login-toggle-password"
-                  onClick={() => setShowPassword((v) => !v)}
-                  style={{
-                    position: "absolute",
-                    right: 12,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 4,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
+                  onClick={() => setShowCurrent((v) => !v)}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 4 }}
                 >
-                  <EyeIcon open={showPassword} />
+                  <EyeIcon open={showCurrent} />
                 </button>
               </div>
-              {error.password && (
-                <div style={{
-                  fontSize: 12,
-                  color: "#EF4444",
-                  marginTop: 6,
-                  fontWeight: 400,
-                }}>
-                  {error.password}
-                </div>
-              )}
+              {error.currentPassword && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 6 }}>{error.currentPassword}</div>}
             </div>
 
-            {/* Forgot password */}
-            <div style={{
-              textAlign: "right",
-              marginBottom: 28,
-              opacity: stageReady[4] ? 1 : 0,
-              transition: "opacity 0.4s ease",
-            }}>
-              <span
-                id="login-forgot-password"
-                style={{
-                  fontSize: 13,
-                  color: C.accent,
-                  cursor: "pointer",
-                  fontWeight: 500,
-                  transition: "opacity 0.2s",
-                }}
-                onMouseEnter={(e) => { e.target.style.opacity = "0.8"; }}
-                onMouseLeave={(e) => { e.target.style.opacity = "1"; }}
-              >
-                Forgot password?
-              </span>
+            {/* New Password */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 8 }}>
+                New Password
+              </label>
+              <div style={{ position: "relative", animation: error.newPassword ? "loginShake 0.3s ease" : "none" }}>
+                <input
+                  type={showNew ? "text" : "password"}
+                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    if (error.newPassword) setError((prev) => ({ ...prev, newPassword: "" }));
+                  }}
+                  style={{ ...inputBase, paddingRight: 48, borderColor: error.newPassword ? "#EF4444" : C.border }}
+                  onFocus={(e) => { if (!error.newPassword) { e.target.style.borderColor = inputFocusStyle.borderColor; e.target.style.boxShadow = inputFocusStyle.boxShadow; } }}
+                  onBlur={(e) => { if (!error.newPassword) { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; } }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew((v) => !v)}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 4 }}
+                >
+                  <EyeIcon open={showNew} />
+                </button>
+              </div>
+              {error.newPassword && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 6 }}>{error.newPassword}</div>}
             </div>
+
+            {/* Confirm Password */}
+            <div style={{ marginBottom: 32 }}>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 8 }}>
+                Confirm Password
+              </label>
+              <div style={{ position: "relative", animation: error.confirmPassword ? "loginShake 0.3s ease" : "none" }}>
+                <input
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="Confirm new password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (error.confirmPassword) setError((prev) => ({ ...prev, confirmPassword: "" }));
+                  }}
+                  style={{ ...inputBase, paddingRight: 48, borderColor: error.confirmPassword ? "#EF4444" : C.border }}
+                  onFocus={(e) => { if (!error.confirmPassword) { e.target.style.borderColor = inputFocusStyle.borderColor; e.target.style.boxShadow = inputFocusStyle.boxShadow; } }}
+                  onBlur={(e) => { if (!error.confirmPassword) { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; } }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 4 }}
+                >
+                  <EyeIcon open={showConfirm} />
+                </button>
+              </div>
+              {error.confirmPassword && <div style={{ fontSize: 12, color: "#EF4444", marginTop: 6 }}>{error.confirmPassword}</div>}
+            </div>
+
             {error.submit && (
               <div style={{
                 fontSize: 13,
@@ -591,14 +438,9 @@ export default function Login() {
               </div>
             )}
 
-            {/* SIGN IN button */}
-            <div style={{
-              opacity: stageReady[5] ? 1 : 0,
-              transform: stageReady[5] ? "translateY(0)" : "translateY(18px)",
-              transition: "opacity 0.4s ease, transform 0.4s ease",
-            }}>
+            {/* UPDATE PASSWORD button */}
+            <div>
               <button
-                id="login-submit-btn"
                 type="submit"
                 disabled={loading || success}
                 style={{
@@ -661,78 +503,14 @@ export default function Login() {
                     />
                   </svg>
                 ) : (
-                  "SIGN IN"
+                  "UPDATE PASSWORD"
                 )}
               </button>
             </div>
           </form>
-
-          {/* Divider */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            margin: "28px 0",
-            opacity: stageReady[6] ? 1 : 0,
-            transition: "opacity 0.4s ease",
-          }}>
-            <div style={{ flex: 1, height: 1, background: C.border }} />
-            <span style={{ fontSize: 12, color: C.muted, fontWeight: 400 }}>or</span>
-            <div style={{ flex: 1, height: 1, background: C.border }} />
-          </div>
-
-          {/* Contact HR */}
-          <div style={{
-            textAlign: "center",
-            marginBottom: 32,
-            opacity: stageReady[6] ? 1 : 0,
-            transition: "opacity 0.4s ease",
-          }}>
-            <span style={{ fontSize: 13, color: C.muted, fontWeight: 400 }}>
-              Don't have an account?{" "}
-              <span 
-                onClick={() => navigate("/register")}
-                style={{ color: C.accent, fontWeight: 500, cursor: "pointer", transition: "opacity 0.2s" }}
-                onMouseEnter={(e) => { e.target.style.opacity = "0.8"; }}
-                onMouseLeave={(e) => { e.target.style.opacity = "1"; }}
-              >
-                Register here
-              </span>
-            </span>
-          </div>
-
-          {/* Info card */}
-          <div style={{
-            background: C.surface,
-            border: `1px solid ${C.border}`,
-            borderRadius: 12,
-            padding: "16px 20px",
-            opacity: stageReady[7] ? 1 : 0,
-            transform: stageReady[7] ? "translateY(0)" : "translateY(12px)",
-            transition: "opacity 0.4s ease, transform 0.4s ease",
-          }}>
-            <div style={{
-              fontSize: 13,
-              color: C.text,
-              fontWeight: 500,
-              marginBottom: 6,
-              lineHeight: 1.5,
-            }}>
-              Your Login ID format: [Company][Name][Year][Serial]
-            </div>
-            <div style={{
-              fontSize: 12,
-              color: C.muted,
-              fontWeight: 400,
-              lineHeight: 1.5,
-            }}>
-              e.g. OIJODO20220001
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Responsive styles injected via style tag */}
       <style dangerouslySetInnerHTML={{ __html: `
         #login-left-panel {
           display: flex;
