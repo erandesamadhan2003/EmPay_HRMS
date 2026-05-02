@@ -33,19 +33,21 @@ export default function LeaveManagementView(){
   const { data: reqData, isLoading, error, refetch } = useTimeOffRequests();
   const { approveRequest, rejectRequest, isApproving, isRejecting } = useTimeOffRequestMutations();
 
-  // Map API response
-  const rawReqs = Array.isArray(reqData?.data) ? reqData.data : (Array.isArray(reqData) ? reqData : []);
-  const leaves = rawReqs.map(l => ({
-    id: l._id || l.id,
-    employeeName: l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName||''}`.trim() : (l.employeeName || 'Employee'),
-    employeeId: l.employee?.employeeId || l.employeeId || '—',
-    leaveType: l.leaveType || l.type || 'Leave',
-    fromDate: l.startDate || l.fromDate || '',
-    toDate: l.endDate || l.toDate || '',
-    days: l.numberOfDays || l.days || 1,
-    reason: l.reason || l.description || '',
-    status: l.status ? l.status.charAt(0).toUpperCase() + l.status.slice(1).toLowerCase() : 'Pending',
-    appliedOn: l.createdAt || l.appliedOn || '',
+  // Backend returns { data: { items: [...], pagination: {...} } }
+  // requestDTO fields: id, employee.{id,name,loginId,designation}, leaveType, startDate, endDate, daysRequested, reason, status, reviewerNote, createdAt
+  const rawReqs = reqData?.data?.items ?? reqData?.data ?? reqData ?? [];
+  const leaves = (Array.isArray(rawReqs) ? rawReqs : []).map(l => ({
+    id: l.id,
+    employeeName: l.employee?.name || 'Employee',
+    employeeId: l.employee?.loginId || '—',
+    leaveType: l.leaveType || 'Leave',
+    fromDate: l.startDate || '',
+    toDate: l.endDate || '',
+    days: l.daysRequested || 1,
+    reason: l.reason || '',
+    status: l.status ? l.status.charAt(0).toUpperCase() + l.status.slice(1) : 'Pending',
+    appliedOn: l.createdAt || '',
+    reviewerNote: l.reviewerNote || '',
   }));
 
   const [tab,setTab]=useState('all');

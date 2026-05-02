@@ -54,23 +54,28 @@ export default function EmployeeManagementView() {
   const { data: deptData } = useDepartments();
   const { createEmployee, updateEmployee, deleteEmployee, isCreating, isUpdating, isDeleting } = useEmployeeMutations();
 
-  // Map API response to component format
-  const rawEmps = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
-  const EMPLOYEES = rawEmps.map(e => ({
-    id: e._id || e.id,
-    loginId: e.loginId || e.employeeId || `EMP-${e._id?.slice(-4) || '0000'}`,
-    name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name || 'Unknown',
-    email: e.email || e.workEmail || '—',
-    phone: e.phone || e.mobile || '—',
-    department: e.department?.name || e.departmentName || '—',
-    role: e.role || e.jobTitle || '—',
-    joinDate: e.joiningDate || e.createdAt || '',
-    status: e.status === 'active' || e.isActive !== false ? 'Active' : 'Inactive',
-    salary: e.salary || e.basicSalary || 0,
+  // Map API response to component format — backend returns { data: { items: [...], pagination: {...} } }
+  const rawEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
+  const EMPLOYEES = (Array.isArray(rawEmps) ? rawEmps : []).map(e => ({
+    id: e.id,
+    loginId: e.loginId || '—',
+    name: e.name || 'Unknown',
+    email: e.email || '—',
+    phone: e.phone || '—',
+    department: e.profile?.department?.name || '—',
+    departmentId: e.profile?.department?.id || null,
+    role: e.role || '—',
+    designation: e.profile?.designation || '—',
+    joinDate: e.profile?.dateOfJoining || '',
+    status: e.isActive ? 'Active' : 'Inactive',
+    avatarUrl: e.avatarUrl || null,
+    attendance: e.attendanceStatus || 'absent',
   }));
 
-  // Available departments from API
-  const apiDepts = (Array.isArray(deptData?.data) ? deptData.data : (Array.isArray(deptData) ? deptData : [])).map(d => d.name);
+  // Available departments from API — keep full objects so we have both id and name
+  const apiDeptObjects = deptData?.data?.items ?? deptData?.data ?? deptData ?? [];
+  const cleanDepts = Array.isArray(apiDeptObjects) ? apiDeptObjects : [];
+  const apiDepts = cleanDepts.map(d => d.name);
 
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('All');
@@ -80,10 +85,13 @@ export default function EmployeeManagementView() {
   const [page, setPage] = useState(1);
   const [modal, setModal] = useState(null);
   const [modalEmp, setModalEmp] = useState(null);
-  const [form, setForm] = useState({name:'',email:'',phone:'',department:'Engineering',role:'',joinDate:'',salary:''});
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
+  // form.departmentId stores the UUID; form.department stores the display name
+  const [form, setForm] = useState({name:'',email:'',phone:'',department:'',departmentId:'',role:'',joinDate:'',salary:''});
 
-  const depts = ['All',...new Set([...apiDepts, ...EMPLOYEES.map(e=>e.department)].filter(Boolean))];
-  const roles = ['All',...new Set(EMPLOYEES.map(e=>e.role).filter(Boolean))];
+  const depts = ['All',...new Set([...apiDepts, ...EMPLOYEES.map(e=>e.department)].filter(d=>d && d !== '—'))];
+  const roles = ['All',...new Set(EMPLOYEES.map(e=>e.role).filter(r=>r && r !== '—'))];
 
   const filtered = EMPLOYEES.filter(e => {
     if (search && !e.name.toLowerCase().includes(search.toLowerCase()) && !e.loginId.toLowerCase().includes(search.toLowerCase())) return false;
@@ -99,28 +107,51 @@ export default function EmployeeManagementView() {
   const toggleAll = () => setSelected(allChecked ? [] : paged.map(e=>e.id));
   const toggleOne = (id) => setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
 
-  const openAdd = () => { setForm({name:'',email:'',phone:'',department:apiDepts[0]||'Engineering',role:'',joinDate:'',salary:''}); setModal('add'); };
-  const openEdit = (e) => { setForm({name:e.name,email:e.email,phone:e.phone,department:e.department,role:e.role,joinDate:e.joinDate,salary:e.salary}); setModalEmp(e); setModal('edit'); };
+  const openAdd = () => {
+    const firstDept = cleanDepts[0];
+    setForm({name:'',email:'',phone:'',department:firstDept?.name||'',departmentId:firstDept?.id||'',role:'employee',joinDate:'',salary:''});
+    setSaveError(''); setSaveSuccess('');
+    setModal('add');
+  };
+  const openEdit = (e) => {
+    const deptObj = cleanDepts.find(d => d.id === e.departmentId) || {};
+    setForm({name:e.name,email:e.email,phone:e.phone,department:e.department,departmentId:e.departmentId||deptObj.id||'',role:e.role,joinDate:e.joinDate,salary:''});
+    setModalEmp(e); setSaveError(''); setSaveSuccess('');
+    setModal('edit');
+  };
   const openView = (e) => { setModalEmp(e); setModal('view'); };
   const openDelete = (e) => { setModalEmp(e); setModal('delete'); };
-  const closeModal = () => { setModal(null); setModalEmp(null); };
+  const closeModal = () => { setModal(null); setModalEmp(null); setSaveError(''); setSaveSuccess(''); };
 
   const handleSave = async () => {
+    setSaveError(''); setSaveSuccess('');
+    // Validate required fields
+    if (!form.name.trim()) return setSaveError('Full name is required.');
+    if (!form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email)) return setSaveError('A valid email is required.');
     try {
       const payload = {
-        firstName: form.name.split(' ')[0] || '',
-        lastName: form.name.split(' ').slice(1).join(' ') || '',
-        email: form.email,
-        phone: form.phone,
-        department: form.department,
-        role: form.role,
-        joiningDate: form.joinDate,
-        salary: Number(form.salary),
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone || undefined,
+        departmentId: form.departmentId || undefined,   // Real UUID from API
+        role: form.role || 'employee',
+        dateOfJoining: form.joinDate || undefined,
+        designation: form.role || 'Employee',
       };
-      if (modal === 'add') await createEmployee(payload);
-      else if (modal === 'edit' && modalEmp) await updateEmployee({ id: modalEmp.id, data: payload });
-      closeModal();
-    } catch (err) { console.error('Save failed:', err); }
+      if (modal === 'add') {
+        await createEmployee(payload);
+        setSaveSuccess('Employee created! They will receive a temporary password.');
+        setTimeout(() => closeModal(), 1800);
+      } else if (modal === 'edit' && modalEmp) {
+        await updateEmployee({ id: modalEmp.id, data: payload });
+        setSaveSuccess('Employee updated successfully.');
+        setTimeout(() => closeModal(), 1200);
+      }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to save employee.';
+      setSaveError(msg);
+      console.error('Save failed:', err);
+    }
   };
 
   const handleDelete = async () => {
@@ -218,7 +249,7 @@ export default function EmployeeManagementView() {
                     <td style={{...td,fontFamily:'monospace',color:C.muted,fontSize:12}}>{e.loginId}</td>
                     <td style={td}><span style={{fontSize:11,fontWeight:600,color:dc,background:`${dc}18`,padding:'3px 10px',borderRadius:20}}>{e.department}</span></td>
                     <td style={{...td,fontSize:13,color:C.muted}}>{e.role}</td>
-                    <td style={{...td,fontSize:12,color:C.muted}}>{new Date(e.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td>
+                    <td style={{...td,fontSize:12,color:C.muted}}>{e.joinDate ? new Date(e.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</td>
                     <td style={td}><span style={{fontSize:10,fontWeight:600,padding:'3px 10px',borderRadius:20,background:e.status==='Active'?C.tealLight:'rgba(239,68,68,.15)',color:e.status==='Active'?C.teal:C.danger}}>{e.status}</span></td>
                     <td style={{...td,textAlign:'center'}}>
                       <div style={{display:'flex',gap:4,justifyContent:'center'}}>
@@ -293,14 +324,16 @@ export default function EmployeeManagementView() {
               <div style={{gridColumn:'span 2'}}><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Full Name</label><input style={modalField} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Full Name"/></div>
               <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Email</label><input style={modalField} value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@empay.io"/></div>
               <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Phone</label><div style={{display:'flex',gap:6}}><span style={{...modalField,width:50,textAlign:'center',flexShrink:0,padding:'10px 6px'}}>+91</span><input style={modalField} value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="9876543210"/></div></div>
-              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Department</label><select style={{...modalField,cursor:'pointer'}} value={form.department} onChange={e=>setForm(f=>({...f,department:e.target.value}))}>{['Engineering','HR','Finance','Operations','Marketing'].map(d=><option key={d} value={d} style={{background:C.surface}}>{d}</option>)}</select></div>
+              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Department</label><select style={{...modalField,cursor:'pointer'}} value={form.departmentId} onChange={e=>{const obj=cleanDepts.find(d=>d.id===e.target.value)||{};setForm(f=>({...f,departmentId:e.target.value,department:obj.name||''}));}}>{cleanDepts.length>0?cleanDepts.map(d=><option key={d.id} value={d.id} style={{background:C.surface}}>{d.name}</option>):<option value="">No departments loaded</option>}</select></div>
               <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Role</label><input style={modalField} value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} placeholder="Role"/></div>
               <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Date of Joining</label><input type="date" style={{...modalField,colorScheme:'dark'}} value={form.joinDate} onChange={e=>setForm(f=>({...f,joinDate:e.target.value}))}/></div>
               <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Salary</label><input type="number" style={modalField} value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} placeholder="Monthly salary"/></div>
             </div>
-            <div style={{display:'flex',gap:12,justifyContent:'flex-end',marginTop:24}}>
+            {saveError && <div style={{marginTop:16,padding:'10px 14px',borderRadius:10,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.25)',fontSize:12,color:'#EF4444',fontWeight:500}}>{saveError}</div>}
+            {saveSuccess && <div style={{marginTop:16,padding:'10px 14px',borderRadius:10,background:'rgba(20,184,166,0.1)',border:'1px solid rgba(20,184,166,0.25)',fontSize:12,color:C.teal,fontWeight:500}}>✓ {saveSuccess}</div>}
+            <div style={{display:'flex',gap:12,justifyContent:'flex-end',marginTop:16}}>
               <button onClick={closeModal} style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 22px',color:C.text,fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Cancel</button>
-              <button onClick={handleSave} disabled={isCreating||isUpdating} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:(isCreating||isUpdating)?0.6:1}}>{(isCreating||isUpdating)?'Saving...':'Save'}</button>
+              <button onClick={handleSave} disabled={isCreating||isUpdating||!!saveSuccess} style={{background:C.teal,border:'none',borderRadius:10,padding:'10px 22px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif',opacity:(isCreating||isUpdating)?0.6:1}}>{(isCreating||isUpdating)?'Saving...':saveSuccess?'✓ Done':'Save'}</button>
             </div>
           </div>
         </div>
@@ -319,22 +352,25 @@ export default function EmployeeManagementView() {
                 <span style={{fontSize:11,fontWeight:600,color:dc,background:`${dc}18`,padding:'3px 10px',borderRadius:20}}>{modalEmp.department}</span>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:20}}>
-                {[['Login ID',modalEmp.loginId],['Email',modalEmp.email],['Phone','+91 '+modalEmp.phone],['Role',modalEmp.role],['Joined',new Date(modalEmp.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})],['Status',modalEmp.status],['Salary','\u20B9'+modalEmp.salary.toLocaleString('en-IN')],['Present Days','22 / 26']].map(([k,v])=>(
+                {[
+                  ['Login ID', modalEmp.loginId],
+                  ['Email', modalEmp.email],
+                  ['Phone', modalEmp.phone !== '—' ? modalEmp.phone : 'N/A'],
+                  ['Designation', modalEmp.designation],
+                  ['Role', modalEmp.role],
+                  ['Joined', modalEmp.joinDate ? new Date(modalEmp.joinDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : 'N/A'],
+                  ['Status', modalEmp.status],
+                  ['Today', modalEmp.attendance ? modalEmp.attendance.charAt(0).toUpperCase()+modalEmp.attendance.slice(1) : 'N/A'],
+                ].map(([k,v])=>(
                   <div key={k} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px'}}>
                     <div style={{fontSize:10,color:C.muted,textTransform:'uppercase',letterSpacing:'.04em',marginBottom:4}}>{k}</div>
                     <div style={{fontSize:13,fontWeight:500,color:k==='Status'?(v==='Active'?C.teal:C.danger):C.text}}>{v}</div>
                   </div>
                 ))}
               </div>
-              <div style={{display:'flex',gap:12}}>
-                <div style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px',textAlign:'center'}}>
-                  <div style={{fontSize:10,color:C.muted,textTransform:'uppercase',marginBottom:4}}>Leave Days</div>
-                  <div style={{fontSize:18,fontWeight:700,color:C.warning}}>4</div>
-                </div>
-                <div style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:'10px 14px',textAlign:'center'}}>
-                  <div style={{fontSize:10,color:C.muted,textTransform:'uppercase',marginBottom:4}}>Last Payslip</div>
-                  <div style={{fontSize:18,fontWeight:700,color:C.teal}}>\u20B9{modalEmp.salary.toLocaleString('en-IN')}</div>
-                </div>
+              <div style={{display:'flex',gap:12,justifyContent:'flex-end'}}>
+                <button onClick={()=>openEdit(modalEmp)} style={{background:'transparent',border:`1px solid ${C.teal}`,borderRadius:10,padding:'9px 18px',color:C.teal,fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Edit Employee</button>
+                <button onClick={closeModal} style={{background:C.teal,border:'none',borderRadius:10,padding:'9px 18px',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',fontFamily:'Poppins,sans-serif'}}>Close</button>
               </div>
             </div>
           </div>

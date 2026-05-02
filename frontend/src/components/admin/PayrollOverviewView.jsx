@@ -33,21 +33,35 @@ export default function PayrollOverviewView(){
   const { createPayrun, isCreating: isCreatingPayrun } = usePayrunMutations();
   const { loadPayslipPdfBlob } = usePayslipMutations();
 
-  // Map employee data to payroll format
-  const rawEmps = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
-  const EMPS = rawEmps.map(e => ({
-    id: e._id || e.id,
-    name: `${e.firstName||''} ${e.lastName||''}`.trim() || e.name || 'Unknown',
-    department: e.department?.name || e.departmentName || '\u2014',
-    basicSalary: e.salary?.basic || e.basicSalary || e.salary || 0,
-    hra: e.salary?.hra || e.hra || Math.round((e.salary?.basic || e.basicSalary || e.salary || 0) * 0.4),
-    allowances: e.salary?.allowances || e.allowances || Math.round((e.salary?.basic || e.basicSalary || e.salary || 0) * 0.25),
-    pfDeduction: e.salary?.pf || e.pfDeduction || Math.round((e.salary?.basic || e.basicSalary || e.salary || 0) * 0.12),
-    professionalTax: e.salary?.professionalTax || e.professionalTax || 200,
-    status: e.payrollStatus || 'Pending',
-  })).map(e => ({...e, netSalary: e.basicSalary + e.hra + e.allowances - e.pfDeduction - e.professionalTax}));
+  // Map employee data — backend returns { data: { items: [...] } }
+  // serializer fields: { id, name, role, isActive, profile: { designation, department: {name}, dateOfJoining } }
+  const rawEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
+  const EMPS = (Array.isArray(rawEmps) ? rawEmps : []).map(e => {
+    const basic = e.salary?.basic || e.basicSalary || 0;
+    const hra = Math.round(basic * 0.4);
+    const allowances = Math.round(basic * 0.25);
+    const pf = Math.round(basic * 0.12);
+    const pt = 200;
+    return {
+      id: e.id,
+      name: e.name || 'Unknown',
+      department: e.profile?.department?.name || '\u2014',
+      basicSalary: basic,
+      hra,
+      allowances,
+      pfDeduction: pf,
+      professionalTax: pt,
+      status: e.payrollStatus || 'Pending',
+      netSalary: basic + hra + allowances - pf - pt,
+    };
+  });
 
-  const MONTHS = MONTHS_FB;
+  // Dynamic months — last 5 months
+  const now = new Date();
+  const MONTHS = Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (4 - i), 1);
+    return d.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  });
 
   const [month,setMonth]=useState('May 2025');
   const [modal,setModal]=useState(null);

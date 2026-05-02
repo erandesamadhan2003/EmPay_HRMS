@@ -145,9 +145,12 @@ export default function DashboardView() {
 
   // Derive stats from API (fallback to 0)
   const s = dashStats?.data || dashStats || {};
-  const totalEmp = s.totalEmployees ?? empData?.data?.length ?? empData?.length ?? 0;
+  const rawEmpsForCount = empData?.data?.items ?? empData?.data ?? empData ?? [];
+  const empCount = Array.isArray(rawEmpsForCount) ? rawEmpsForCount.length : 0;
+  const totalEmp = s.totalEmployees ?? empCount;
   const presentToday = s.presentToday ?? 0;
-  const pendingLeaveCount = s.pendingLeaves ?? leaveReqs?.data?.length ?? leaveReqs?.length ?? 0;
+  const rawLeavesForCount = leaveReqs?.data?.items ?? leaveReqs?.data ?? leaveReqs ?? [];
+  const pendingLeaveCount = s.pendingLeaves ?? (Array.isArray(rawLeavesForCount) ? rawLeavesForCount.length : 0);
   const monthPayroll = s.thisMonthPayroll ?? costData?.data?.total ?? 0;
 
   const emp = useCountUp(totalEmp);
@@ -161,23 +164,32 @@ export default function DashboardView() {
     return `₹${v}`;
   };
 
-  // Map API employees to table format
-  const employees = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
+  // Map API employees — serializer: { id, loginId, name, email, role, isActive, profile: { department: {name}, dateOfJoining } }
+  const rawEmpsList = empData?.data?.items ?? empData?.data ?? empData ?? [];
+  const employees = Array.isArray(rawEmpsList) ? rawEmpsList : [];
   const recentEmployees = employees.slice(-5).reverse().map(e => ({
-    name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name || 'Unknown',
-    dept: e.department?.name || e.departmentName || '—',
-    role: e.role || e.jobTitle || '—',
-    date: e.createdAt ? new Date(e.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
-    active: e.status === 'active' || e.isActive !== false,
+    name: e.name || 'Unknown',
+    dept: e.profile?.department?.name || '—',
+    role: e.role || '—',
+    date: e.profile?.dateOfJoining ? new Date(e.profile.dateOfJoining).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+    active: e.isActive,
   }));
 
-  // Map API leave requests
-  const rawLeaves = Array.isArray(leaveReqs?.data) ? leaveReqs.data : (Array.isArray(leaveReqs) ? leaveReqs : []);
-  const pendingLeaves = rawLeaves.slice(0, 4).map((l, i) => {
-    const nm = l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName||''}`.trim() : (l.employeeName || 'Employee');
-    const ini = nm.split(' ').map(x => x[0]).join('');
+  // Map API leave requests — requestDTO: { employee.{name,loginId}, leaveType, startDate, endDate, daysRequested }
+  const rawLeavesList = leaveReqs?.data?.items ?? leaveReqs?.data ?? leaveReqs ?? [];
+  const pendingLeaves = (Array.isArray(rawLeavesList) ? rawLeavesList : []).slice(0, 4).map((l, i) => {
+    const nm = l.employee?.name || 'Employee';
+    const ini = nm.split(' ').map(x => x[0]).join('').toUpperCase();
     const colors = [C.accent, C.teal, C.cyan, C.warning];
-    return { name: nm, initials: ini, color: colors[i % 4], type: l.leaveType || l.type || 'Leave', from: l.startDate ? new Date(l.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—', to: l.endDate ? new Date(l.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—' };
+    return {
+      id: l.id,
+      name: nm,
+      initials: ini,
+      color: colors[i % 4],
+      type: l.leaveType || 'Leave',
+      from: l.startDate ? new Date(l.startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—',
+      to: l.endDate ? new Date(l.endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—',
+    };
   });
 
   // Leave donut from stats

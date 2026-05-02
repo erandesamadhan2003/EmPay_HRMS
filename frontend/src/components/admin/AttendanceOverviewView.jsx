@@ -56,16 +56,19 @@ export default function AttendanceOverviewView(){
   const [hover,setHover]=useState(null);
   const [modal,setModal]=useState(null);
 
-  // Build department filter from API
-  const apiDepts = (Array.isArray(deptData?.data) ? deptData.data : (Array.isArray(deptData) ? deptData : [])).map(d => d.name).filter(Boolean);
+  // Build department filter from API — backend returns { data: { items: [...] } }
+  const rawDeptList = deptData?.data?.items ?? deptData?.data ?? deptData ?? [];
+  const apiDepts = (Array.isArray(rawDeptList) ? rawDeptList : []).map(d => d.name).filter(Boolean);
   const DEPTS_DYNAMIC = ['All', ...new Set(apiDepts.length ? apiDepts : ['Engineering','HR','Finance','Operations','Marketing'])];
 
   // Use API employees or fallback to generated data
-  const apiEmps = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
+  // serializer fields: { id, name, isActive, role, profile: { department: {name}, dateOfJoining } }
+  const rawApiEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
+  const apiEmps = Array.isArray(rawApiEmps) ? rawApiEmps : [];
   const data = useMemo(() => {
     if (apiEmps.length > 0) {
       return apiEmps.map((e, idx) => {
-        const nm = `${e.firstName||''} ${e.lastName||''}`.trim() || e.name || 'Unknown';
+        const nm = e.name || 'Unknown';
         const daysInMo = new Date(year, month + 1, 0).getDate();
         const rec = [];
         for (let d = 1; d <= daysInMo; d++) {
@@ -75,7 +78,7 @@ export default function AttendanceOverviewView(){
           else if (d === 15 || d === 26) rec.push('H');
           else { const r = Math.random(); rec.push(r < 0.75 ? 'P' : r < 0.88 ? 'A' : 'L'); }
         }
-        return { id: e._id || e.id || idx + 1, name: nm, dept: e.department?.name || e.departmentName || '—', initials: nm.split(' ').map(x => x[0]).join(''), days: rec };
+        return { id: e.id || idx + 1, name: nm, dept: e.profile?.department?.name || '—', initials: nm.split(' ').map(x => x[0]).join('').toUpperCase(), days: rec };
       });
     }
     return genData(year, month);

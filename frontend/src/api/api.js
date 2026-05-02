@@ -36,8 +36,8 @@ api.interceptors.response.use(
     (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401) {
-            console.warn('Token expired or invalid. Forcing logout.');
+        if (error.response?.status === 401 || (error.response?.status === 400 && error.response?.data?.message?.includes('Company context'))) {
+            console.warn('Token expired, invalid, or missing context. Forcing logout.');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login';

@@ -7,11 +7,6 @@ const C = { bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24', accent: 
 const DEPT_COLORS = { Engineering: C.teal, HR: C.accent, Finance: C.cyan, Operations: C.warning, Marketing: '#EC4899', Design: '#F97316' };
 const COLOR_SWATCHES = [C.teal, C.accent, C.cyan, C.warning, '#EC4899', '#F97316'];
 
-const DEPTS_FALLBACK = [
-  { id: 1, name: 'Engineering', headName: 'Neha Reddy', employeeCount: 42, createdDate: '2022-03-15', description: 'Software development, infrastructure, and technical architecture across all product lines.' },
-  { id: 2, name: 'HR', headName: 'Priya Mehta', employeeCount: 12, createdDate: '2022-03-15', description: 'People operations, talent acquisition, employee engagement and compliance management.' },
-];
-
 const PenIco = ({ color }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>;
 const TrashIco = ({ color }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
 const XIco = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>;
@@ -38,37 +33,63 @@ export default function DepartmentManagementView() {
   const { data: empData } = useEmployees();
   const { createDepartment, updateDepartment, deleteDepartment, isCreating, isUpdating, isDeleting } = useDepartmentMutations();
 
-  const rawDepts = Array.isArray(deptData?.data) ? deptData.data : (Array.isArray(deptData) ? deptData : []);
-  const DEPTS = rawDepts.map(d => ({
-    id: d._id || d.id,
+  // Backend returns { data: { items: [...], pagination: {...} } }
+  const rawDepts = deptData?.data?.items ?? deptData?.data ?? deptData ?? [];
+  const DEPTS = (Array.isArray(rawDepts) ? rawDepts : []).map(d => ({
+    id: d.id,
     name: d.name || 'Unknown',
-    headName: d.head?.firstName ? `${d.head.firstName} ${d.head.lastName || ''}`.trim() : (d.headName || '—'),
-    employeeCount: d.employeeCount ?? d.members?.length ?? 0,
-    createdDate: d.createdAt || d.createdDate || '',
+    headName: '—',        // not returned by list API; shown when available
+    employeeCount: d.employeeCount ?? 0,
+    createdDate: d.createdAt || '',
     description: d.description || '',
   }));
 
-  const employees = (Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : [])).map(e => `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name).filter(Boolean);
+  const rawEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
+  // Keep full objects {id, name} so department head dropdown sends real UUID
+  const employees = (Array.isArray(rawEmps) ? rawEmps : [])
+    .filter(e => e.id && e.name)
+    .map(e => ({ id: e.id, name: e.name }));
 
   const [modal, setModal] = useState(null);
   const [modalDept, setModalDept] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', headName: '', color: C.teal });
+  const [form, setForm] = useState({ name: '', description: '', managerId: '', color: C.teal });
+  const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState('');
 
   const totalEmps = DEPTS.reduce((a, d) => a + d.employeeCount, 0);
   const largest = DEPTS.length ? DEPTS.reduce((a, d) => d.employeeCount > a.employeeCount ? d : a, DEPTS[0]) : { name: '—' };
   const newest = DEPTS.length ? DEPTS.reduce((a, d) => new Date(d.createdDate) > new Date(a.createdDate) ? d : a, DEPTS[0]) : { name: '—' };
 
-  const openAdd = () => { setForm({ name: '', description: '', headName: '', color: C.teal }); setModal('add'); };
-  const openEdit = (d) => { setForm({ name: d.name, description: d.description, headName: d.headName, color: DEPT_COLORS[d.name] || C.teal }); setModalDept(d); setModal('edit'); };
+  const openAdd = () => {
+    setForm({ name: '', description: '', managerId: '', color: C.teal });
+    setSaveError(''); setSaveSuccess('');
+    setModal('add');
+  };
+  const openEdit = (d) => {
+    setForm({ name: d.name, description: d.description, managerId: d.managerId || '', color: DEPT_COLORS[d.name] || C.teal });
+    setModalDept(d); setSaveError(''); setSaveSuccess('');
+    setModal('edit');
+  };
   const openDel = (d) => { setModalDept(d); setModal('delete'); };
-  const close = () => { setModal(null); setModalDept(null); };
+  const close = () => { setModal(null); setModalDept(null); setSaveError(''); setSaveSuccess(''); };
 
   const handleSave = async () => {
+    setSaveError(''); setSaveSuccess('');
+    if (!form.name.trim()) return setSaveError('Department name is required.');
     try {
-      if (modal === 'add') await createDepartment({ name: form.name, description: form.description });
-      else if (modal === 'edit' && modalDept) await updateDepartment({ id: modalDept.id, data: { name: form.name, description: form.description } });
-      close();
-    } catch (err) { console.error('Save failed:', err); }
+      if (modal === 'add') {
+        await createDepartment({ name: form.name.trim(), description: form.description });
+        setSaveSuccess('Department created successfully!');
+      } else if (modal === 'edit' && modalDept) {
+        await updateDepartment({ id: modalDept.id, data: { name: form.name.trim(), description: form.description } });
+        setSaveSuccess('Department updated successfully!');
+      }
+      setTimeout(() => close(), 1200);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to save department.';
+      setSaveError(msg);
+      console.error('Save failed:', err);
+    }
   };
   const handleDelete = async () => {
     try { if (modalDept) await deleteDepartment(modalDept.id); close(); } catch (err) { console.error('Delete failed:', err); }
@@ -132,8 +153,10 @@ export default function DepartmentManagementView() {
                   </div>
                   {/* Head */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `${dc}22`, border: `1.5px solid ${dc}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: dc }}>{d.headName[0]}</div>
-                    <div><div style={{ fontSize: 12, color: C.muted }}>Head</div><div style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{d.headName}</div></div>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `${dc}22`, border: `1.5px solid ${dc}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: dc }}>
+                      {d.headName && d.headName !== '—' ? d.headName[0].toUpperCase() : '?'}
+                    </div>
+                    <div><div style={{ fontSize: 12, color: C.muted }}>Head</div><div style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{d.headName || '—'}</div></div>
                   </div>
                   {/* Count */}
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 12 }}>
@@ -144,7 +167,7 @@ export default function DepartmentManagementView() {
                   <p style={{ fontSize: 12, color: C.muted, fontWeight: 300, lineHeight: 1.5, marginBottom: 14, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{d.description}</p>
                   {/* Date */}
                   <div style={{ fontSize: 11, color: C.muted, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
-                    Created {new Date(d.createdDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {d.createdDate ? `Created ${new Date(d.createdDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : 'Recently created'}
                   </div>
                 </div>
               </div>
@@ -162,23 +185,27 @@ export default function DepartmentManagementView() {
               <div onClick={close} style={{ cursor: 'pointer' }}><XIco /></div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div><label style={{ fontSize: 11, color: C.muted, display: 'block', marginBottom: 4 }}>Department Name</label><input style={mf} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Engineering" /></div>
+              <div><label style={{ fontSize: 11, color: C.muted, display: 'block', marginBottom: 4 }}>Department Name *</label><input style={mf} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Engineering" /></div>
               <div><label style={{ fontSize: 11, color: C.muted, display: 'block', marginBottom: 4 }}>Description</label><textarea style={{ ...mf, minHeight: 70, resize: 'vertical' }} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief description" /></div>
-              <div><label style={{ fontSize: 11, color: C.muted, display: 'block', marginBottom: 4 }}>Department Head</label><select style={{ ...mf, cursor: 'pointer' }} value={form.headName} onChange={e => setForm(f => ({ ...f, headName: e.target.value }))}>
-                <option value="" style={{ background: C.surface }}>Select head</option>
-                {['Neha Reddy', 'Priya Mehta', 'Rohit Kumar', 'Vikram Singh', 'Anita Gupta', 'Divya Nair', 'Aarav Sharma', 'Karan Joshi'].map(n => <option key={n} value={n} style={{ background: C.surface }}>{n}</option>)}
-              </select></div>
+              <div><label style={{ fontSize: 11, color: C.muted, display: 'block', marginBottom: 4 }}>Department Head</label>
+                <select style={{ ...mf, cursor: 'pointer' }} value={form.managerId} onChange={e => setForm(f => ({ ...f, managerId: e.target.value }))}>
+                  <option value="" style={{ background: C.surface }}>Select head (optional)</option>
+                  {employees.map(emp => <option key={emp.id} value={emp.id} style={{ background: C.surface }}>{emp.name}</option>)}
+                </select>
+              </div>
               <div><label style={{ fontSize: 11, color: C.muted, display: 'block', marginBottom: 6 }}>Color</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   {COLOR_SWATCHES.map(c => (
-                    <div key={c} onClick={() => setForm(f => ({ ...f, color: c }))} style={{ width: 32, height: 32, borderRadius: 10, background: c, cursor: 'pointer', border: form.color === c ? '2.5px solid #fff' : `2.5px solid transparent`, transition: 'all .2s', opacity: form.color === c ? 1 : 0.5 }} />
+                    <div key={c} onClick={() => setForm(f => ({ ...f, color: c }))} style={{ width: 32, height: 32, borderRadius: 10, background: c, cursor: 'pointer', border: form.color === c ? '2.5px solid #fff' : '2.5px solid transparent', transition: 'all .2s', opacity: form.color === c ? 1 : 0.5 }} />
                   ))}
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+            {saveError && <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 12, color: '#EF4444', fontWeight: 500 }}>{saveError}</div>}
+            {saveSuccess && <div style={{ marginTop: 14, padding: '10px 14px', borderRadius: 10, background: 'rgba(20,184,166,0.1)', border: '1px solid rgba(20,184,166,0.25)', fontSize: 12, color: C.teal, fontWeight: 500 }}>✓ {saveSuccess}</div>}
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={close} style={{ background: 'transparent', border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 22px', color: C.text, fontSize: 13, cursor: 'pointer', fontFamily: 'Poppins,sans-serif' }}>Cancel</button>
-              <button onClick={handleSave} disabled={isCreating || isUpdating} style={{ background: C.teal, border: 'none', borderRadius: 10, padding: '10px 22px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Poppins,sans-serif', opacity: (isCreating || isUpdating) ? 0.6 : 1 }}>{(isCreating || isUpdating) ? 'Saving...' : 'Save'}</button>
+              <button onClick={handleSave} disabled={isCreating || isUpdating || !!saveSuccess} style={{ background: C.teal, border: 'none', borderRadius: 10, padding: '10px 22px', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Poppins,sans-serif', opacity: (isCreating || isUpdating) ? 0.6 : 1 }}>{(isCreating || isUpdating) ? 'Saving...' : saveSuccess ? '✓ Done' : 'Save'}</button>
             </div>
           </div>
         </div>
