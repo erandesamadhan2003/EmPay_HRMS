@@ -16,6 +16,7 @@ import AdminPayroll from "../pages/admin/PayrollOverview";
 import AdminReports from "../pages/admin/Reports";
 import AdminSettings from "../pages/admin/Settings";
 import AdminProfile from "../pages/admin/Profile";
+import AdminAssistant from "../pages/admin/Assistant";
 
 // HR
 import HRDashboard from "../pages/hr/Dashboard";
@@ -24,6 +25,7 @@ import HRAttendance from "../pages/hr/AttendanceMonitor";
 import HRLeaveAllocation from "../pages/hr/LeaveAllocation";
 import HRLeaveRequests from "../pages/hr/LeaveRequests";
 import HRProfile from "../pages/hr/Profile";
+import HRAssistant from "../pages/hr/Assistant";
 
 // Payroll
 import PayrollDashboard from "../pages/payroll/Dashboard";
@@ -41,6 +43,7 @@ import EmpApplyLeave from "../pages/employee/ApplyLeave";
 import EmpMyLeaves from "../pages/employee/MyLeaves";
 import EmpPayslips from "../pages/employee/Payslips";
 import EmpProfile from "../pages/employee/Profile";
+import EmpAssistant from "../pages/employee/Assistant";
 
 // Super Admin
 import SuperAdminDashboard from "../pages/superadmin/Dashboard";
@@ -66,6 +69,7 @@ const router = createBrowserRouter([
   { path: "/admin/payroll", element: <AdminPayroll /> },
   { path: "/admin/reports", element: <AdminReports /> },
   { path: "/admin/settings", element: <AdminSettings /> },
+  { path: "/admin/assistant", element: <AdminAssistant /> },
   { path: "/admin/profile", element: <AdminProfile /> },
 
   // HR
@@ -74,6 +78,7 @@ const router = createBrowserRouter([
   { path: "/hr/attendance", element: <HRAttendance /> },
   { path: "/hr/leave-allocation", element: <HRLeaveAllocation /> },
   { path: "/hr/leave-requests", element: <HRLeaveRequests /> },
+  { path: "/hr/assistant", element: <HRAssistant /> },
   { path: "/hr/profile", element: <HRProfile /> },
 
   // Payroll
@@ -91,6 +96,7 @@ const router = createBrowserRouter([
   { path: "/employee/apply-leave", element: <EmpApplyLeave /> },
   { path: "/employee/my-leaves", element: <EmpMyLeaves /> },
   { path: "/employee/payslips", element: <EmpPayslips /> },
+  { path: "/employee/assistant", element: <EmpAssistant /> },
   { path: "/employee/profile", element: <EmpProfile /> },
 
   // Super Admin

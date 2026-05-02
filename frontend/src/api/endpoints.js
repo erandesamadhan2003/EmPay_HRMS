@@ -85,4 +85,7 @@ export const API_PATHS = {
 		warnings: "/dashboard/warnings",
 	},
 	auditLogs: "/audit-logs",
+	agent: {
+		chat: "/agent/chat",
+	},
 };

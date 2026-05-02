@@ -34,6 +34,7 @@ export const NAV_CONFIG = {
     { label: 'Payroll', icon: 'dollar', path: '/admin/payroll' },
     { label: 'Reports', icon: 'bar-chart', path: '/admin/reports' },
     { label: 'Settings', icon: 'settings', path: '/admin/settings' },
+    { label: 'Assistant', icon: 'activity', path: '/admin/assistant' },
   ],
   hr: [
     { label: 'Dashboard', icon: 'grid', path: '/hr/dashboard' },
@@ -41,6 +42,7 @@ export const NAV_CONFIG = {
     { label: 'Attendance Monitor', icon: 'clock', path: '/hr/attendance' },
     { label: 'Leave Allocation', icon: 'gift', path: '/hr/leave-allocation' },
     { label: 'Leave Requests', icon: 'calendar', path: '/hr/leave-requests' },
+    { label: 'Assistant', icon: 'activity', path: '/hr/assistant' },
     { label: 'Profile', icon: 'user', path: '/hr/profile' },
   ],
   payroll: [
@@ -58,6 +60,7 @@ export const NAV_CONFIG = {
     { label: 'Apply Leave', icon: 'plus-circle', path: '/employee/apply-leave' },
     { label: 'My Leaves', icon: 'calendar', path: '/employee/my-leaves' },
     { label: 'Payslips', icon: 'file-text', path: '/employee/payslips' },
+    { label: 'Assistant', icon: 'activity', path: '/employee/assistant' },
     { label: 'Profile', icon: 'user', path: '/employee/profile' },
   ],
   superadmin: [

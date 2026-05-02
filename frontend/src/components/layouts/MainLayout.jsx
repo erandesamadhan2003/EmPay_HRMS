@@ -55,6 +55,7 @@ export default function MainLayout({
   pageTitle = 'Dashboard',
   notifCount = 0,
   onLogout,
+  contentPadding = 32,
 }) {
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -143,7 +144,7 @@ export default function MainLayout({
           marginLeft: sidebarWidth,
           marginTop: 64,
           marginBottom: 48,
-          padding: 32,
+          padding: contentPadding,
           minHeight: 'calc(100vh - 64px - 48px)',
           background: C.bg,
           transition: 'margin-left 0.3s ease',
