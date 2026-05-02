@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useAuth, useTimeOffRequests } from '../../hooks';
+import { useAuth, useTimeOffRequests, useCheckInPolicy, useAttendanceMutations } from '../../hooks';
 import { LoadingSpinner, ErrorState } from '../admin/shared';
 
 const C = {
@@ -61,10 +61,15 @@ const ATT_DATA = [
 export default function EmployeeDashboardView() {
   const { user } = useAuth();
   const { data: reqData, isLoading: reqLoading } = useTimeOffRequests();
+  const { data: policyData } = useCheckInPolicy();
+  const { checkIn, checkOut, isCheckingIn, isCheckingOut } = useAttendanceMutations();
   
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [geoError, setGeoError] = useState(null);
   
+  const policy = policyData?.data ?? policyData ?? {};
+
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -73,8 +78,55 @@ export default function EmployeeDashboardView() {
   const rawReqs = Array.isArray(reqData?.data) ? reqData.data : (Array.isArray(reqData) ? reqData : []);
   const myLeaves = rawReqs.filter(r => r.employeeId === user?.id || r.user_id === user?.id).slice(0, 3);
 
-  const toggleCheckIn = () => {
-    setIsCheckedIn(!isCheckedIn);
+  const getDistanceMeters = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI / 180;
+    const p2 = lat2 * Math.PI / 180;
+    const dp = (lat2 - lat1) * Math.PI / 180;
+    const dl = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const toggleCheckIn = async () => {
+    if (isCheckedIn) {
+      try { await checkOut(); setIsCheckedIn(false); } catch (e) { console.error(e); }
+    } else {
+      setGeoError(null);
+      if (policy.geofenceRequired) {
+        if (!navigator.geolocation) {
+          setGeoError('Geolocation is not supported by your browser.');
+          return;
+        }
+        
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          const d = getDistanceMeters(latitude, longitude, policy.officeLatitude, policy.officeLongitude);
+          
+          if (d > (policy.radiusMeters || 100)) {
+            setGeoError(`You are ${Math.round(d)}m away from the office. You must be within ${policy.radiusMeters || 100}m to check in.`);
+            return;
+          }
+
+          try { 
+            await checkIn({ latitude, longitude }); 
+            setIsCheckedIn(true); 
+          } catch (e) { 
+            setGeoError(e?.response?.data?.message || 'Check-in failed');
+          }
+        }, (err) => {
+          setGeoError('Please allow location access to check in.');
+        });
+      } else {
+        try { 
+          await checkIn(); 
+          setIsCheckedIn(true); 
+        } catch (e) { 
+          setGeoError(e?.response?.data?.message || 'Check-in failed');
+        }
+      }
+    }
   };
 
   const statCards = [
@@ -107,20 +159,27 @@ export default function EmployeeDashboardView() {
           <h3 style={{ fontSize: 14, color: C.muted, fontWeight: 500, margin: '0 0 16px' }}>Current Status</h3>
           <button 
             onClick={toggleCheckIn}
+            disabled={isCheckingIn || isCheckingOut}
             className={`check-in-btn ${isCheckedIn ? 'active' : ''}`}
             style={{ 
               width: 120, height: 120, borderRadius: '50%', border: 'none', cursor: 'pointer',
               background: isCheckedIn ? C.teal : C.surfaceHover,
               border: `2px solid ${isCheckedIn ? C.teal : C.border}`,
               color: isCheckedIn ? '#fff' : C.text,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
+              opacity: (isCheckingIn || isCheckingOut) ? 0.7 : 1
             }}>
             <CSSIcon type="clock" color={isCheckedIn ? '#fff' : C.teal} size={32} />
-            <span style={{ fontSize: 15, fontWeight: 600 }}>{isCheckedIn ? 'Check Out' : 'Check In'}</span>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>{isCheckingIn ? 'Checking In...' : isCheckingOut ? 'Checking Out...' : isCheckedIn ? 'Check Out' : 'Check In'}</span>
           </button>
           <div style={{ marginTop: 16, fontSize: 12, color: isCheckedIn ? C.teal : C.muted, fontWeight: 500 }}>
             {isCheckedIn ? `Checked in at ${currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'You are currently clocked out'}
           </div>
+          {geoError && (
+            <div style={{ marginTop: 12, fontSize: 11, color: C.danger, background: `${C.danger}15`, padding: '6px 12px', borderRadius: 8 }}>
+              {geoError}
+            </div>
+          )}
         </div>
 
         {statCards.map((s, i) => (

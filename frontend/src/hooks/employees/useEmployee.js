@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { employeesService } from "../../services/employees.service";
 import { mutationRetryOptions, standardQueryOptions } from "../queryDefaults";
 
-export const useEmployees = (params = {}) => {
+export const useEmployees = (params = { limit: 100 }) => {
 	return useQuery({
 		queryKey: ["employees", params],
 		queryFn: () => employeesService.getAll(params),

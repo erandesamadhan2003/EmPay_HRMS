@@ -2,6 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { attendanceService } from "../../services/attendance.service";
 import { mutationRetryOptions, standardQueryOptions } from "../queryDefaults";
 
+export const useCheckInPolicy = () => {
+	return useQuery({
+		queryKey: ["attendance", "policy"],
+		queryFn: () => attendanceService.getCheckInPolicy(),
+		...standardQueryOptions,
+	});
+};
+
 export const useMyAttendance = (params = {}) => {
 	return useQuery({
 		queryKey: ["attendance", "me", params],

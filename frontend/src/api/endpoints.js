@@ -30,6 +30,7 @@ export const API_PATHS = {
 		salary: (userId) => `/employees/${userId}/salary`,
 	},
 	attendance: {
+		checkInPolicy: "/attendance/check-in-policy",
 		checkIn: "/attendance/check-in",
 		checkOut: "/attendance/check-out",
 		me: "/attendance/me",
