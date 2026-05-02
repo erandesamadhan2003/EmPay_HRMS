@@ -1,4 +1,8 @@
 import express from 'express';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import swaggerUi from 'swagger-ui-express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import companiesRoutes from './routes/companies.routes.js';
@@ -20,6 +24,9 @@ import bcrypt from 'bcrypt';
 import cors from 'cors';
 dotenv.config();
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const openApiSpec = JSON.parse(readFileSync(join(__dirname, 'docs/openapi.json'), 'utf8'));
+
 const app = express();
 app.use(express.json());
 app.use((req, res, next) => {
@@ -28,6 +35,13 @@ app.use((req, res, next) => {
 });
 
 app.use(cors());
+
+// Swagger UI (`serve` is an array — spread it; do not add a separate /api/docs redirect or static + slash fight causes ERR_TOO_MANY_REDIRECTS)
+app.use(
+	"/api/docs",
+	...swaggerUi.serve,
+	swaggerUi.setup(openApiSpec, { customSiteTitle: "EmPay API" }),
+);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companiesRoutes);

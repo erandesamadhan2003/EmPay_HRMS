@@ -119,7 +119,12 @@ export async function registerUser(req, res) {
 	} catch (err) {
 		await client.query("ROLLBACK");
 		if (err.code === "23505") {
-			return res.status(409).json(errorResponse("User with this email already exists"));
+			const detail = String(err.detail || err.constraint || "");
+			const msg =
+				/login_id|users_login_id/i.test(detail) ?
+					"Login id already in use"
+				:	"User with this email already exists";
+			return res.status(409).json(errorResponse(msg));
 		}
 		console.error(err);
 		return res.status(500).json(errorResponse("Registration failed"));
