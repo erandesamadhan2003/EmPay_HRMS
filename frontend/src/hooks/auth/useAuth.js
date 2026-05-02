@@ -37,9 +37,10 @@ export const useAuth = () => {
         setIsCreatingCompany(true);
         setCreateCompanyError(null);
         try {
-            const response = await authService.createCompany(companyData);
-            setCompanyId(response.data.id);
-            return response;
+            const envelope = await authService.createCompany(companyData);
+            const cid = envelope?.data?.id;
+            if (cid) setCompanyId(cid);
+            return envelope;
         } catch (err) {
             setCreateCompanyError(err.response?.data?.message || 'Failed to create company');
             throw err;
@@ -80,8 +81,8 @@ export const useAuth = () => {
         }
     }, []);
 
-    const logout = useCallback(() => {
-        authService.logout();
+    const logout = useCallback(async () => {
+        await authService.logout();
         navigate('/login', { replace: true });
     }, [navigate]);
 
