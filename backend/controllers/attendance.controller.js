@@ -17,7 +17,6 @@ import {
 } from "../models/Attendance.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
 
-/** When company office coordinates are set, check-in must be within this radius (meters). */
 export const CHECK_IN_GEOFENCE_RADIUS_M = 100;
 
 async function pgToday(req) {
@@ -84,12 +83,6 @@ async function monthlyAttendanceEnvelope(db, userId, reqQuery) {
 	};
 }
 
-/**
- * WGS84 degrees. Preferred: top-level JSON numbers from the Geolocation API:
- *   latitude  ← position.coords.latitude
- *   longitude ← position.coords.longitude
- * Also accepts: lat / lng / lon, or nested { coords: { latitude, longitude } }.
- */
 function parseCheckInCoordinates(body) {
 	const b = body && typeof body === "object" ? body : {};
 	const c = b.coords && typeof b.coords === "object" ? b.coords : null;

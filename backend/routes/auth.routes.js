@@ -11,7 +11,6 @@ import { authRequired, requireRoles } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-/** Mounted at app.use("/api/auth", …) → /api/auth/login, etc. */
 router.post("/login", login);
 router.post("/register", registerUser);
 router.post("/change-password", authRequired, changePassword);
