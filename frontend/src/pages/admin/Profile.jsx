@@ -1,10 +1,10 @@
-﻿const C = { accent: '#14B8A6', text: '#F0FDFA', muted: '#8B8A9B', surface: '#13131A', border: '#2E2E3E' };
+import MainLayout from '../../components/layouts/MainLayout';
+import ProfileView from '../../components/admin/ProfileView';
 
-export default function AdminProfile() {
+export default function Profile() {
   return (
-    <div style={{ fontFamily: 'Poppins, sans-serif' }}>
-      <h2 style={{ fontSize: 28, fontWeight: 700, color: C.text, marginBottom: 8 }}>Profile</h2>
-      <p style={{ fontSize: 14, color: C.muted, fontWeight: 300 }}>This page is under construction.</p>
-    </div>
+    <MainLayout role="admin" pageTitle="Profile" userName="Admin User" userInitials="AU" notifCount={3}>
+      <ProfileView />
+    </MainLayout>
   );
 }
