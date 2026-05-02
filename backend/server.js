@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import router from './routes/auth.routes.js';
+import authRoutes from './routes/auth.routes.js';
+import superAdminRoutes from './routes/superAdmin.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
 import bcrypt from 'bcrypt';
@@ -9,8 +10,13 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use((req, res, next) => {
+    req.db = pool;
+    next();
+});
 
-app.use('/api', router);
+app.use('/api', authRoutes);
+app.use('/api', superAdminRoutes);
 
 const PORT = process.env.PORT || 3000;
 
@@ -27,7 +33,6 @@ async function ensureSuperadmin() {
 
 async function start() {
     try {
-        // quick DB connectivity test
         try {
             const { rows } = await pool.query('SELECT NOW()');
             console.log('Postgres connected:', rows[0].now);
