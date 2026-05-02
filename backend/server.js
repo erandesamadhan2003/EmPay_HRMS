@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import companiesRoutes from './routes/companies.routes.js';
 import superAdminRoutes from './routes/superAdmin.routes.js';
+import superAdminPortalRoutes from './routes/superAdminPortal.routes.js';
+
 import departmentsRoutes from './routes/departments.routes.js';
 import employeesRoutes from './routes/employees.routes.js';
 import attendanceRoutes from './routes/attendance.routes.js';
@@ -47,6 +49,8 @@ app.use(
 app.use('/api/auth', authRoutes);
 app.use('/api/companies', companiesRoutes);
 app.use('/api/company-requests', superAdminRoutes);
+app.use('/api/superadmin', superAdminPortalRoutes);
+
 app.use('/api/departments', departmentsRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/attendance', attendanceRoutes);

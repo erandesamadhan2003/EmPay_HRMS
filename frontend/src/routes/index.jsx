@@ -42,6 +42,14 @@ import EmpMyLeaves from "../pages/employee/MyLeaves";
 import EmpPayslips from "../pages/employee/Payslips";
 import EmpProfile from "../pages/employee/Profile";
 
+// Super Admin
+import SuperAdminDashboard from "../pages/superadmin/Dashboard";
+import SuperAdminRequests from "../pages/superadmin/CompanyRequests";
+import SuperAdminCompanies from "../pages/superadmin/CompaniesManagement";
+import SuperAdminAuditLogs from "../pages/superadmin/AuditLogs";
+import SuperAdminProfile from "../pages/superadmin/Profile";
+
+
 const router = createBrowserRouter([
   // Public / Auth
   { path: "/", element: <LandingPage /> },
@@ -84,6 +92,14 @@ const router = createBrowserRouter([
   { path: "/employee/my-leaves", element: <EmpMyLeaves /> },
   { path: "/employee/payslips", element: <EmpPayslips /> },
   { path: "/employee/profile", element: <EmpProfile /> },
+
+  // Super Admin
+  { path: "/superadmin/dashboard", element: <SuperAdminDashboard /> },
+  { path: "/superadmin/company-requests", element: <SuperAdminRequests /> },
+  { path: "/superadmin/companies", element: <SuperAdminCompanies /> },
+  { path: "/superadmin/audit-logs", element: <SuperAdminAuditLogs /> },
+  { path: "/superadmin/profile", element: <SuperAdminProfile /> },
+
 ]);
 
 export default router;

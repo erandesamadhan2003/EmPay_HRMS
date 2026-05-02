@@ -202,7 +202,8 @@ export default function Login() {
         } else {
           const userStr = localStorage.getItem("user");
           const role = userStr ? JSON.parse(userStr).role : null;
-          if (role === "admin" || role === "super_admin" || role === "superadmin") navigate("/admin/dashboard");
+          if (role === "superadmin" || role === "super_admin") navigate("/superadmin/dashboard");
+          else if (role === "admin") navigate("/admin/dashboard");
           else if (role === "hr_officer" || role === "hr") navigate("/hr/dashboard");
           else if (role === "payroll_officer" || role === "payroll") navigate("/payroll/dashboard");
           else if (role === "employee") navigate("/employee/dashboard");

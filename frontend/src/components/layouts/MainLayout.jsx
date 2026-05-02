@@ -61,12 +61,18 @@ export default function MainLayout({
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Get real user data from local storage
+  const auth = JSON.parse(localStorage.getItem('empay_auth') || '{}');
+  const user = auth.user || {};
+  const actualName = user.name || userName;
+  const actualInitials = user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : userInitials;
+  const actualRole = user.role || role;
+
   const handleLogout = useCallback(() => {
     if (onLogout) {
       onLogout();
     } else {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.removeItem('empay_auth');
       navigate('/login');
     }
   }, [onLogout, navigate]);
@@ -110,9 +116,9 @@ export default function MainLayout({
       <LayoutStyles />
 
       <Sidebar
-        role={role}
-        userName={userName}
-        userInitials={userInitials}
+        role={actualRole}
+        userName={actualName}
+        userInitials={actualInitials}
         onLogout={handleLogout}
         isCollapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed(c => !c)}
@@ -122,9 +128,9 @@ export default function MainLayout({
 
       <Navbar
         pageTitle={pageTitle}
-        userName={userName}
-        userInitials={userInitials}
-        role={role}
+        userName={actualName}
+        userInitials={actualInitials}
+        role={actualRole}
         notifCount={notifCount}
         onLogout={handleLogout}
         onToggleSidebar={handleToggleSidebar}

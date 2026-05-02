@@ -39,6 +39,7 @@ export const authService = {
 		const user = response.data?.data?.user;
 		if (token) {
 			localStorage.setItem("token", token);
+			localStorage.setItem("empay_auth", JSON.stringify({ token }));
 			if (user) localStorage.setItem("user", JSON.stringify(user));
 		}
 
@@ -48,7 +49,10 @@ export const authService = {
 	refresh: async () => {
 		const response = await api.post(API_PATHS.auth.refresh);
 		const token = response.data?.data?.token;
-		if (token) localStorage.setItem("token", token);
+		if (token) {
+			localStorage.setItem("token", token);
+			localStorage.setItem("empay_auth", JSON.stringify({ token }));
+		}
 		return response.data;
 	},
 
@@ -60,6 +64,7 @@ export const authService = {
 		} finally {
 			localStorage.removeItem("token");
 			localStorage.removeItem("user");
+			localStorage.removeItem("empay_auth");
 		}
 	},
 
