@@ -1,11 +1,11 @@
 export function generateAccountVerifiedTemplate({
-    userName,
-    userEmail,
-    loginId,
-    temporaryPassword,
-    companyName,
+	userName,
+	userEmail,
+	loginId,
+	temporaryPassword,
+	companyName,
 }) {
-    const htmlContent = `
+	const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -47,7 +47,7 @@ export function generateAccountVerifiedTemplate({
     </html>
     `;
 
-    const textContent = `
+	const textContent = `
 Account verified for ${userName}
 
 Hello ${userName},
@@ -60,5 +60,5 @@ Temporary Password: ${temporaryPassword}
 Please change your temporary password immediately after your first login.
 	`;
 
-    return { subject: `Your EmPay HRMS Account Has Been Verified`, html: htmlContent, text: textContent };
+	return { subject: `Your EmPay HRMS Account Has Been Verified`, html: htmlContent, text: textContent };
 }
