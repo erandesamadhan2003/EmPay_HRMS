@@ -294,3 +294,54 @@ export async function resetPassword(req, res) {
 		return res.status(500).json(errorResponse("Unable to reset password"));
 	}
 }
+
+export async function getAuthProfile(req, res) {
+	try {
+		const user = await findUserById(req.db, req.user.id);
+		if (!user) return res.status(404).json(errorResponse("User not found"));
+		return res.json(successResponse(user, "Profile fetched"));
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json(errorResponse("Unable to fetch profile"));
+	}
+}
+
+export async function updateAuthProfile(req, res) {
+	try {
+		const id = req.user.id;
+		const { name, phone, email } = req.body;
+
+		let updateFields = [];
+		let values = [];
+		let counter = 1;
+
+		if (name !== undefined) {
+			updateFields.push(`name = $${counter++}`);
+			values.push(name);
+		}
+		if (phone !== undefined) {
+			updateFields.push(`phone = $${counter++}`);
+			values.push(phone);
+		}
+		if (email !== undefined) {
+			updateFields.push(`email = $${counter++}`);
+			values.push(email);
+		}
+
+		if (updateFields.length > 0) {
+			updateFields.push(`updated_at = NOW()`);
+			values.push(id);
+			await req.db.query(
+				`UPDATE users SET ${updateFields.join(", ")} WHERE id = $${counter}`,
+				values
+			);
+		}
+
+		const updatedUser = await findUserById(req.db, id);
+		return res.json(successResponse(updatedUser, "Profile updated"));
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json(errorResponse("Unable to update profile"));
+	}
+}
+

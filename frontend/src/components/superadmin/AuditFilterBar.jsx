@@ -17,10 +17,20 @@ const InputBase = {
 
 export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
   const [search, setSearch] = useState(filters.search || '');
-  
+
   // Fetch companies for the filter
   const { data: companiesData } = useFetch('/superadmin/companies?status=active&limit=100');
-  const companies = companiesData?.data || [];
+
+  let companies = [];
+  if (companiesData?.data?.items && Array.isArray(companiesData.data.items)) {
+    companies = companiesData.data.items;
+  } else if (companiesData?.data && Array.isArray(companiesData.data)) {
+    companies = companiesData.data;
+  } else if (companiesData?.items && Array.isArray(companiesData.items)) {
+    companies = companiesData.items;
+  } else if (Array.isArray(companiesData)) {
+    companies = companiesData;
+  }
 
   // Debounce search
   useEffect(() => {
@@ -37,15 +47,15 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
   const setPreset = (preset) => {
     const now = new Date();
     let from = new Date();
-    if (preset === 'Today') from.setHours(0,0,0,0);
+    if (preset === 'Today') from.setHours(0, 0, 0, 0);
     if (preset === 'This Week') from.setDate(now.getDate() - now.getDay());
     if (preset === 'This Month') from.setDate(1);
     if (preset === 'Last 3 Months') from.setMonth(now.getMonth() - 3);
-    
-    onChange({ 
-      ...filters, 
-      from: from.toISOString().split('T')[0], 
-      to: now.toISOString().split('T')[0] 
+
+    onChange({
+      ...filters,
+      from: from.toISOString().split('T')[0],
+      to: now.toISOString().split('T')[0]
     });
   };
 
@@ -53,22 +63,22 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
 
   return (
     <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      
+
       {/* Top Row: Search and Action */}
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '250px' }}>
           <svg style={{ position: 'absolute', left: '12px', top: '10px', color: C.muted }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input 
-            type="text" 
-            placeholder="Search by actor, action, company..." 
+          <input
+            type="text"
+            placeholder="Search by actor, action, company..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ ...InputBase, width: '100%', paddingLeft: '36px', boxSizing: 'border-box' }} 
+            style={{ ...InputBase, width: '100%', paddingLeft: '36px', boxSizing: 'border-box' }}
           />
         </div>
 
-        <select 
-          value={filters.action} 
+        <select
+          value={filters.action}
           onChange={e => onChange({ ...filters, action: e.target.value })}
           style={InputBase}
         >
@@ -83,8 +93,8 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
           <option value="SETTINGS_CHANGED">Settings Changed</option>
         </select>
 
-        <select 
-          value={filters.company} 
+        <select
+          value={filters.company}
           onChange={e => onChange({ ...filters, company: e.target.value })}
           style={{ ...InputBase, flex: '0 1 200px' }}
         >
@@ -97,7 +107,7 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
 
       {/* Second Row: Severity and Dates */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-        
+
         {/* Severity Pills */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <span style={{ fontSize: '13px', color: C.muted, marginRight: '4px' }}>Severity:</span>
@@ -107,7 +117,7 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
             if (sev === 'Info') color = C.cyan;
             if (sev === 'Warning') color = C.warning;
             if (sev === 'Critical') color = C.danger;
-            
+
             return (
               <button
                 key={sev}
@@ -135,8 +145,8 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             {['Today', 'This Week', 'This Month'].map(p => (
-              <button 
-                key={p} 
+              <button
+                key={p}
                 onClick={() => setPreset(p)}
                 style={{ background: 'transparent', border: 'none', color: C.teal, fontSize: '12px', cursor: 'pointer', padding: 0 }}
               >
@@ -151,7 +161,7 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: '16px' }}>
         <div>
           {hasFilters && (
-            <button 
+            <button
               onClick={() => onChange({ search: '', action: 'All', severity: 'All', company: 'All', from: '', to: '' })}
               style={{ background: 'transparent', border: 'none', color: C.muted, fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}
             >
@@ -159,11 +169,11 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
             </button>
           )}
         </div>
-        <button 
+        <button
           onClick={onExport}
           disabled={loading}
-          style={{ 
-            padding: '10px 18px', background: 'transparent', border: `1px solid ${C.teal}`, color: C.teal, 
+          style={{
+            padding: '10px 18px', background: 'transparent', border: `1px solid ${C.teal}`, color: C.teal,
             borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s',
             fontSize: '13px'
           }}

@@ -133,17 +133,17 @@ export async function getDashboardStats(req, res) {
 	try {
 		const { rows: stats } = await req.db.query(`
 			SELECT 
-				(SELECT COUNT(*) FROM companies) as total_companies,
-				(SELECT COUNT(*) FROM companies WHERE id IN (SELECT DISTINCT company_id FROM users WHERE is_active = TRUE)) as active_companies,
-				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending') as pending_requests,
-				(SELECT COUNT(*) FROM users WHERE role::text <> 'superadmin') as total_users
+				(SELECT COUNT(*) FROM companies)::int as total_companies,
+				(SELECT COUNT(*) FROM users WHERE is_active = TRUE AND role = 'admin')::int as active_companies,
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending_requests,
+				(SELECT COUNT(*) FROM users WHERE role::text <> 'superadmin')::int as total_users
 		`);
 
 		const data = {
-			totalCompanies: stats[0].total_companies,
-			activeCompanies: stats[0].active_companies,
-			pendingRequests: stats[0].pending_requests,
-			totalUsers: stats[0].total_users,
+			totalCompanies: parseInt(stats[0].total_companies),
+			activeCompanies: parseInt(stats[0].active_companies),
+			pendingRequests: parseInt(stats[0].pending_requests),
+			totalUsers: parseInt(stats[0].total_users),
 			trends: {
 				companies: '+4% this month',
 				active: '+2% this month',
@@ -222,11 +222,10 @@ export async function getAnalyticsByStatus(req, res) {
 	try {
 		const { rows } = await req.db.query(`
 			SELECT 
-				COUNT(*) FILTER (WHERE status = 'active') as active,
-				COUNT(*) FILTER (WHERE status = 'pending') as pending,
-				COUNT(*) FILTER (WHERE status = 'suspended') as suspended,
-				COUNT(*) FILTER (WHERE status = 'rejected') as rejected
-			FROM company_requests
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'active')::int as active,
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending,
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'suspended')::int as suspended,
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'rejected')::int as rejected
 		`);
 		// Since companies table doesn't have status, we use requests as proxy or count active companies separately
 		const { rows: activeCount } = await req.db.query("SELECT COUNT(*) FROM companies");
@@ -245,16 +244,18 @@ export async function getAnalyticsByStatus(req, res) {
 
 export async function getRequestsStats(req, res) {
 	try {
+		console.log("Fetching request stats...");
 		const { rows } = await req.db.query(`
 			SELECT 
-				COUNT(*) FILTER (WHERE status = 'pending')::int as pending,
-				COUNT(*) FILTER (WHERE status = 'approved')::int as approved,
-				COUNT(*) FILTER (WHERE status = 'rejected')::int as rejected,
-				COUNT(*) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE))::int as total_this_month
-			FROM company_requests
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending,
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'approved')::int as approved,
+				(SELECT COUNT(*) FROM company_requests WHERE status = 'rejected')::int as rejected,
+				(SELECT COUNT(*) FROM company_requests WHERE created_at >= date_trunc('month', CURRENT_DATE))::int as total_this_month
 		`);
-		return res.json(successResponse(rows[0], "Request stats fetched"));
+		console.log("Stats result:", rows[0]);
+		return res.json(successResponse(rows[0] || { pending: 0, approved: 0, rejected: 0, total_this_month: 0 }, "Request stats fetched"));
 	} catch (err) {
+		console.error("Error fetching request stats:", err);
 		return res.status(500).json(errorResponse("Unable to fetch request stats"));
 	}
 }
@@ -263,10 +264,9 @@ export async function getAuditLogsStats(req, res) {
 	try {
 		const { rows } = await req.db.query(`
 			SELECT 
-				COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE)::int as total_today,
-				COUNT(*) FILTER (WHERE action LIKE '%SUSPEND%' OR action LIKE '%REJECT%')::int as critical_today,
-				COUNT(*) FILTER (WHERE action LIKE '%CHANGE%')::int as warning_today
-			FROM audit_logs
+				(SELECT COUNT(*) FROM audit_logs WHERE created_at >= CURRENT_DATE)::int as total_today,
+				(SELECT COUNT(*) FROM audit_logs WHERE action LIKE '%SUSPEND%' OR action LIKE '%REJECT%')::int as critical_today,
+				(SELECT COUNT(*) FROM audit_logs WHERE action LIKE '%CHANGE%')::int as warning_today
 		`);
 
 		const { rows: actors } = await req.db.query(`
@@ -280,9 +280,9 @@ export async function getAuditLogsStats(req, res) {
 		`);
 
 		return res.json(successResponse({
-			totalToday: rows[0].total_today,
-			criticalToday: rows[0].critical_today,
-			warningToday: rows[0].warning_today,
+			totalToday: parseInt(rows[0]?.total_today || 0),
+			criticalToday: parseInt(rows[0]?.critical_today || 0),
+			warningToday: parseInt(rows[0]?.warning_today || 0),
 			topActors: actors
 		}, "Audit stats fetched"));
 	} catch (err) {
@@ -338,10 +338,11 @@ export async function getAuditLogs(req, res) {
 
 export async function getCompaniesStats(req, res) {
 	try {
+		console.log("Fetching companies stats...");
 		const { rows: stats } = await req.db.query(`
 			SELECT 
-				COUNT(*)::int as total,
-				COUNT(*) FILTER (WHERE id IN (SELECT DISTINCT company_id FROM users WHERE is_active = TRUE))::int as active,
+				(SELECT COUNT(*) FROM companies)::int as total,
+				(SELECT COUNT(*) FROM users WHERE is_active = TRUE AND role = 'admin')::int as active,
 				0 as suspended,
 				(SELECT COUNT(*) FROM company_requests WHERE status = 'pending')::int as pending
 		`);
@@ -354,9 +355,10 @@ export async function getCompaniesStats(req, res) {
 			{ industry: 'Education', count: 15 }
 		];
 
+		console.log("Companies stats result:", stats[0]);
 		return res.json(successResponse({ ...stats[0], byIndustry }, "Companies stats fetched"));
 	} catch (err) {
-		console.error(err);
+		console.error("Error fetching companies stats:", err);
 		return res.status(500).json(errorResponse("Unable to fetch companies stats"));
 	}
 }

@@ -6,10 +6,15 @@ import {
 	logout,
 	refreshToken,
 	resetPassword,
+	getAuthProfile,
+	updateAuthProfile,
 } from "../controllers/auth.controller.js";
 import { authRequired, requireRoles } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+
+router.get("/me", authRequired, getAuthProfile);
+router.put("/me", authRequired, updateAuthProfile);
 
 router.post("/login", login);
 router.post("/register", registerUser);
