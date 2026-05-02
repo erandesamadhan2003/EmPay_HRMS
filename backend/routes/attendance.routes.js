@@ -3,6 +3,7 @@ import {
 	checkIn,
 	checkOut,
 	getMyAttendance,
+	getCheckInGeofenceConfig,
 	listOrgAttendance,
 	getUserAttendance,
 	attendanceSummary,
@@ -15,6 +16,7 @@ const router = express.Router();
 /** Mounted at app.use("/api/attendance", …) */
 router.post("/check-in", authRequired, checkIn);
 router.post("/check-out", authRequired, checkOut);
+router.get("/check-in-policy", authRequired, getCheckInGeofenceConfig);
 router.get("/me", authRequired, getMyAttendance);
 router.get("/summary/:userId", authRequired, attendanceSummary);
 router.get("/", authRequired, requireRoles("admin", "hr_officer", "payroll_officer"), listOrgAttendance);

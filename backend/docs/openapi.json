@@ -189,7 +189,50 @@
 			"put": { "tags": ["Employees"], "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "OK" } } }
 		},
 		"/api/attendance/check-in": {
-			"post": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "summary": "Check in", "responses": { "201": { "description": "Created" } } }
+			"post": {
+				"tags": ["Attendance"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Check in",
+				"description": "If the company has office latitude/longitude set (admin settings), body must include latitude and longitude (WGS84). Server rejects check-in when distance from office exceeds 100m.",
+				"requestBody": {
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"description": "WGS84. Prefer numbers from navigator.geolocation: coords.latitude and coords.longitude.",
+								"properties": {
+									"latitude": { "type": "number", "description": "Device latitude (degrees), same as GeolocationCoordinates.latitude" },
+									"longitude": { "type": "number", "description": "Device longitude (degrees), same as GeolocationCoordinates.longitude" },
+									"lat": { "type": "number" },
+									"lng": { "type": "number" },
+									"coords": {
+										"type": "object",
+										"properties": {
+											"latitude": { "type": "number" },
+											"longitude": { "type": "number" }
+										}
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"201": { "description": "Created" },
+					"400": { "description": "Missing coordinates when geofence enabled" },
+					"403": { "description": "Outside geofence radius" }
+				}
+			}
+		},
+		"/api/attendance/check-in-policy": {
+			"get": {
+				"tags": ["Attendance"],
+				"security": [{ "bearerAuth": [] }],
+				"summary": "Check-in geofence policy",
+				"description": "Returns whether coordinates are required and the office anchor for UI (mirror Haversine + 100m to enable the button). Server enforces on POST /attendance/check-in.",
+				"responses": { "200": { "description": "OK" } }
+			}
 		},
 		"/api/attendance/check-out": {
 			"post": { "tags": ["Attendance"], "security": [{ "bearerAuth": [] }], "summary": "Check out", "responses": { "200": { "description": "OK" } } }
