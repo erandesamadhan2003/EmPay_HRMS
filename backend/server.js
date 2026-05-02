@@ -24,6 +24,7 @@ import agentRoutes from './routes/agent.routes.js';
 import { run as runMigrations } from './migrations/index.js';
 import pool from './config/db.js';
 import redisClient from './config/redis.js';
+import { scheduleAutoAbsentCron } from './services/autoAbsentCron.service.js';
 import bcrypt from 'bcrypt';
 import cors from 'cors';
 dotenv.config();
@@ -91,6 +92,10 @@ async function start() {
 
         await runMigrations();
         await ensureSuperadmin();
+
+        // Initialize auto-absent cron job
+        scheduleAutoAbsentCron(pool, redisClient);
+
         app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
     } catch (err) {
         console.error('Startup failed', err);

@@ -27,6 +27,5 @@ export async function generateLoginId(db, companyId, companyName, firstName, las
 	const r = await db.query(q, [companyId, year]);
 	const count = parseInt(r.rows[0].count || "0", 10) + 1;
 	const serial = pad4(count);
-	const idPart = String(companyId).replace(/-/g, "").slice(0, 6).toUpperCase();
-	return `${companyCode}${np}${year}${serial}${idPart}`;
+	return `${companyCode}${np}${year}${serial}`;
 }

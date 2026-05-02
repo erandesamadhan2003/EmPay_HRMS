@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMyTimeOffAllocations, useTimeOffRequestMutations } from '../../hooks';
 import { LoadingSpinner } from '../admin/shared';
 
@@ -10,32 +10,49 @@ const C = {
   text: '#F1F0FF', muted: '#8B8A9B', border: '#2E2E3E',
 };
 
-const LEAVE_TYPES = [
-  { value: 'paid_time_off', label: 'Paid Time Off' },
-  { value: 'sick_leave', label: 'Sick Leave' },
-  { value: 'unpaid_leave', label: 'Unpaid Leave' },
-];
-
 const Styles = () => (
-  <style dangerouslySetInnerHTML={{ __html: `
+  <style dangerouslySetInnerHTML={{
+    __html: `
     @keyframes alFadeUp { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
     .al-card { animation: alFadeUp .4s ease-out both; }
     .al-input:focus { border-color: ${C.accent} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.15) !important; }
   `}} />
 );
 
+// Calculate business days (weekdays only) between two dates
+function calculateBusinessDays(startDate, endDate) {
+  if (!startDate || !endDate) return 0;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  let count = 0;
+  for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+    const dow = dt.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
 export default function ApplyLeaveView() {
   const { data: allocData, isLoading } = useMyTimeOffAllocations();
   const { createRequest, isCreating } = useTimeOffRequestMutations();
 
-  const [form, setForm] = useState({ leaveType: '', fromDate: '', toDate: '', reason: '' });
+  const [form, setForm] = useState({ allocationId: '', startDate: '', endDate: '', reason: '' });
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
 
   const rawAllocs = allocData?.data?.items ?? allocData?.data ?? allocData ?? [];
   const allocs = Array.isArray(rawAllocs) ? rawAllocs : [];
 
-  const formatType = (t) => (t || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  // Get selected allocation details
+  const selectedAlloc = allocs.find(a => a.id === form.allocationId);
+  const totalDays = selectedAlloc ? Number(selectedAlloc.total_days ?? selectedAlloc.totalDays ?? 0) : 0;
+  const usedDays = selectedAlloc ? Number(selectedAlloc.used_days ?? selectedAlloc.usedDays ?? 0) : 0;
+  const remainingDays = totalDays - usedDays;
+
+  // Calculate days for current selection
+  const requestedDays = useMemo(() => {
+    return calculateBusinessDays(form.startDate, form.endDate);
+  }, [form.startDate, form.endDate]);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -45,10 +62,15 @@ export default function ApplyLeaveView() {
 
   const validate = () => {
     const e = {};
-    if (!form.leaveType) e.leaveType = 'Leave type is required';
-    if (!form.fromDate) e.fromDate = 'Start date is required';
-    if (!form.toDate) e.toDate = 'End date is required';
-    if (form.fromDate && form.toDate && new Date(form.toDate) < new Date(form.fromDate)) e.toDate = 'End date must be after start date';
+    if (!form.allocationId) e.allocationId = 'Allocation is required';
+    if (!form.startDate) e.startDate = 'Start date is required';
+    if (!form.endDate) e.endDate = 'End date is required';
+    if (form.startDate && form.endDate && new Date(form.endDate) < new Date(form.startDate)) {
+      e.endDate = 'End date must be after start date';
+    }
+    if (requestedDays > remainingDays) {
+      e.days = `You only have ${remainingDays} days remaining, but requested ${requestedDays} days`;
+    }
     if (!form.reason.trim()) e.reason = 'Reason is required';
     return e;
   };
@@ -60,13 +82,14 @@ export default function ApplyLeaveView() {
 
     try {
       await createRequest({
-        leave_type: form.leaveType,
-        from_date: form.fromDate,
-        to_date: form.toDate,
+        allocationId: form.allocationId,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        daysRequested: requestedDays,
         reason: form.reason,
       });
       setSuccess(true);
-      setForm({ leaveType: '', fromDate: '', toDate: '', reason: '' });
+      setForm({ allocationId: '', startDate: '', endDate: '', reason: '' });
     } catch (err) {
       setErrors({ submit: err?.response?.data?.message || 'Failed to submit leave request' });
     }
@@ -92,18 +115,27 @@ export default function ApplyLeaveView() {
         <p style={{ fontSize: 13, color: C.muted, margin: '4px 0 0', fontWeight: 300 }}>Submit a new leave request for approval</p>
       </div>
 
+      {/* NO ALLOCATIONS MESSAGE */}
+      {allocs.length === 0 && (
+        <div className="al-card" style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, padding: 32, textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+          <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, margin: '0 0 8px' }}>No Leave Allocations</h3>
+          <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Your HR team hasn't assigned any leave allocations yet. Please contact your HR department to get started.</p>
+        </div>
+      )}
+
       {/* BALANCE SUMMARY */}
       {allocs.length > 0 && (
         <div className="al-card" style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, padding: 20, marginBottom: 28, display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginRight: 'auto' }}>Your Balance:</div>
           {allocs.map((a, i) => {
-            const type = a.leave_type || a.leaveType || '';
-            const total = Number(a.total_days ?? a.totalDays ?? a.days ?? 0);
+            const type = (a.leave_type || a.leaveType || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const total = Number(a.total_days ?? a.totalDays ?? 0);
             const used = Number(a.used_days ?? a.usedDays ?? 0);
             return (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 700, color: C.teal }}>{total - used}</div>
-                <div style={{ fontSize: 10, color: C.muted }}>{formatType(type)}</div>
+                <div style={{ fontSize: 10, color: C.muted }}>{type}</div>
               </div>
             );
           })}
@@ -111,80 +143,116 @@ export default function ApplyLeaveView() {
       )}
 
       {/* FORM */}
-      <div className="al-card" style={{ background: C.surface, borderRadius: 20, border: `1px solid ${C.border}`, padding: 32, animationDelay: '100ms' }}>
-        {success && (
-          <div style={{ background: `${C.teal}15`, border: `1px solid ${C.teal}`, borderRadius: 12, padding: '12px 16px', marginBottom: 24, color: C.teal, fontSize: 13, fontWeight: 500 }}>
-            ✅ Leave request submitted successfully! It will be reviewed by your manager.
-          </div>
-        )}
+      {allocs.length > 0 && (
+        <div className="al-card" style={{ background: C.surface, borderRadius: 20, border: `1px solid ${C.border}`, padding: 32, animationDelay: '100ms' }}>
+          {success && (
+            <div style={{ background: `${C.teal}15`, border: `1px solid ${C.teal}`, borderRadius: 12, padding: '12px 16px', marginBottom: 24, color: C.teal, fontSize: 13, fontWeight: 500 }}>
+              ✅ Leave request submitted successfully! It will be reviewed by your manager.
+            </div>
+          )}
 
-        {errors.submit && (
-          <div style={{ background: `${C.danger}15`, border: `1px solid ${C.danger}`, borderRadius: 12, padding: '12px 16px', marginBottom: 24, color: C.danger, fontSize: 13, fontWeight: 500 }}>
-            {errors.submit}
-          </div>
-        )}
+          {errors.submit && (
+            <div style={{ background: `${C.danger}15`, border: `1px solid ${C.danger}`, borderRadius: 12, padding: '12px 16px', marginBottom: 24, color: C.danger, fontSize: 13, fontWeight: 500 }}>
+              {errors.submit}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit}>
-          {/* Leave Type */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={labelStyle}>Leave Type *</label>
-            <select
-              value={form.leaveType}
-              onChange={e => handleChange('leaveType', e.target.value)}
-              className="al-input"
-              style={{ ...inputStyle, cursor: 'pointer' }}
+          {errors.days && (
+            <div style={{ background: `${C.warning}15`, border: `1px solid ${C.warning}`, borderRadius: 12, padding: '12px 16px', marginBottom: 24, color: C.warning, fontSize: 13, fontWeight: 500 }}>
+              ⚠️ {errors.days}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {/* Allocation Selection */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Select Leave Type *</label>
+              <select
+                value={form.allocationId}
+                onChange={e => handleChange('allocationId', e.target.value)}
+                className="al-input"
+                style={{ ...inputStyle, cursor: 'pointer' }}
+              >
+                <option value="" style={{ background: C.surface }}>Choose a leave allocation</option>
+                {allocs.map(a => {
+                  const type = (a.leave_type || a.leaveType || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                  const total = Number(a.total_days ?? a.totalDays ?? 0);
+                  const used = Number(a.used_days ?? a.usedDays ?? 0);
+                  const remaining = total - used;
+                  return (
+                    <option key={a.id} value={a.id} style={{ background: C.surface }}>
+                      {type} — {remaining} day{remaining !== 1 ? 's' : ''} remaining
+                    </option>
+                  );
+                })}
+              </select>
+              {errors.allocationId && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.allocationId}</span>}
+            </div>
+
+            {/* Date Range */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+              <div>
+                <label style={labelStyle}>From Date *</label>
+                <input type="date" value={form.startDate} onChange={e => handleChange('startDate', e.target.value)} className="al-input" style={inputStyle} />
+                {errors.startDate && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.startDate}</span>}
+              </div>
+              <div>
+                <label style={labelStyle}>To Date *</label>
+                <input type="date" value={form.endDate} onChange={e => handleChange('endDate', e.target.value)} className="al-input" style={inputStyle} />
+                {errors.endDate && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.endDate}</span>}
+              </div>
+            </div>
+
+            {/* Days Summary */}
+            {form.startDate && form.endDate && selectedAlloc && (
+              <div style={{ background: C.bg, borderRadius: 12, padding: 16, marginBottom: 24, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Days Requested</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: C.cyan }}>{requestedDays}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Days Remaining</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: remainingDays >= requestedDays ? C.teal : C.danger }}>{remainingDays}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Status</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: remainingDays >= requestedDays ? C.success : C.danger }}>
+                    {remainingDays >= requestedDays ? '✓ OK' : '✕ Insufficient'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reason */}
+            <div style={{ marginBottom: 28 }}>
+              <label style={labelStyle}>Reason *</label>
+              <textarea
+                value={form.reason}
+                onChange={e => handleChange('reason', e.target.value)}
+                className="al-input"
+                rows={4}
+                placeholder="Briefly describe the reason for your leave..."
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+              {errors.reason && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.reason}</span>}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={isCreating || !form.allocationId}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                background: form.allocationId ? `linear-gradient(135deg, ${C.teal}, #0F766E)` : C.muted,
+                color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: 'Poppins, sans-serif',
+                opacity: isCreating ? 0.7 : 1, transition: 'opacity .2s',
+              }}
             >
-              <option value="" style={{ background: C.surface }}>Select leave type</option>
-              {LEAVE_TYPES.map(t => (
-                <option key={t.value} value={t.value} style={{ background: C.surface }}>{t.label}</option>
-              ))}
-            </select>
-            {errors.leaveType && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.leaveType}</span>}
-          </div>
-
-          {/* Date Range */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-            <div>
-              <label style={labelStyle}>From Date *</label>
-              <input type="date" value={form.fromDate} onChange={e => handleChange('fromDate', e.target.value)} className="al-input" style={inputStyle} />
-              {errors.fromDate && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.fromDate}</span>}
-            </div>
-            <div>
-              <label style={labelStyle}>To Date *</label>
-              <input type="date" value={form.toDate} onChange={e => handleChange('toDate', e.target.value)} className="al-input" style={inputStyle} />
-              {errors.toDate && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.toDate}</span>}
-            </div>
-          </div>
-
-          {/* Reason */}
-          <div style={{ marginBottom: 28 }}>
-            <label style={labelStyle}>Reason *</label>
-            <textarea
-              value={form.reason}
-              onChange={e => handleChange('reason', e.target.value)}
-              className="al-input"
-              rows={4}
-              placeholder="Briefly describe the reason for your leave..."
-              style={{ ...inputStyle, resize: 'vertical' }}
-            />
-            {errors.reason && <span style={{ fontSize: 11, color: C.danger, marginTop: 4, display: 'block' }}>{errors.reason}</span>}
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isCreating}
-            style={{
-              width: '100%', padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: `linear-gradient(135deg, ${C.teal}, #0F766E)`,
-              color: '#fff', fontSize: 15, fontWeight: 600, fontFamily: 'Poppins, sans-serif',
-              opacity: isCreating ? 0.7 : 1, transition: 'opacity .2s',
-            }}
-          >
-            {isCreating ? 'Submitting...' : 'Submit Leave Request'}
-          </button>
-        </form>
-      </div>
+              {isCreating ? 'Submitting...' : 'Submit Leave Request'}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

@@ -277,7 +277,7 @@ const router = createBrowserRouter([
   {
     path: "/hr/dashboard",
     element: (
-      <ProtectedRoute allowedRoles={["hr"]}>
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
         <HRDashboard />
       </ProtectedRoute>
     ),
@@ -285,7 +285,7 @@ const router = createBrowserRouter([
   {
     path: "/hr/employees",
     element: (
-      <ProtectedRoute allowedRoles={["hr"]}>
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
         <HREmployees />
       </ProtectedRoute>
     ),
@@ -293,7 +293,7 @@ const router = createBrowserRouter([
   {
     path: "/hr/attendance",
     element: (
-      <ProtectedRoute allowedRoles={["hr"]}>
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
         <HRAttendance />
       </ProtectedRoute>
     ),
@@ -301,7 +301,7 @@ const router = createBrowserRouter([
   {
     path: "/hr/leave-allocation",
     element: (
-      <ProtectedRoute allowedRoles={["hr"]}>
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
         <HRLeaveAllocation />
       </ProtectedRoute>
     ),
@@ -309,7 +309,7 @@ const router = createBrowserRouter([
   {
     path: "/hr/leave-requests",
     element: (
-      <ProtectedRoute allowedRoles={["hr"]}>
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
         <HRLeaveRequests />
       </ProtectedRoute>
     ),
@@ -317,7 +317,7 @@ const router = createBrowserRouter([
   {
     path: "/hr/profile",
     element: (
-      <ProtectedRoute allowedRoles={["hr"]}>
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
         <HRProfile />
       </ProtectedRoute>
     ),
@@ -325,7 +325,7 @@ const router = createBrowserRouter([
   {
     path: "/hr/assistant",
     element: (
-      <ProtectedRoute allowedRoles={["hr"]}>
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
         <HRAssistant />
       </ProtectedRoute>
     ),

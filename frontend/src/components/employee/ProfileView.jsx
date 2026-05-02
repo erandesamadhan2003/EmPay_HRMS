@@ -18,7 +18,8 @@ const inputStyle = {
 };
 
 const Styles = () => (
-  <style dangerouslySetInnerHTML={{ __html: `
+  <style dangerouslySetInnerHTML={{
+    __html: `
     @keyframes prFadeUp { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
     .pr-card { animation: prFadeUp .4s ease-out both; transition: transform .25s; }
     .pr-tab { padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-family: Poppins, sans-serif; font-size: 13px; font-weight: 500; transition: all .2s; }
@@ -53,7 +54,10 @@ export default function ProfileView() {
   const [saveErr, setSaveErr] = useState('');
 
   const raw = profileData?.data ?? profileData ?? {};
-  const p = typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const p = {
+    ...raw,
+    ...(raw.profile || {}),  // Merge profile fields to top level
+  };
 
   const [form, setForm] = useState({});
 
@@ -177,7 +181,7 @@ export default function ProfileView() {
               onMouseEnter={e => e.currentTarget.style.background = C.tealLight}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
               Edit Profile
             </button>
           )}
@@ -210,10 +214,10 @@ export default function ProfileView() {
                 <Field label="Employee ID" value={p.loginId || p.login_id || user?.loginId} />
                 <Field label="Email" value={p.email || user?.email} />
                 <Field label="Phone" value={p.phone || user?.phone} />
-                <Field label="Designation" value={p.designation} />
+                <Field label="Designation" value={p.designation || p.jobTitle} />
                 <Field label="Department" value={p.departmentName || p.department_name} />
                 <Field label="Manager" value={p.managerName || p.manager_name} />
-                <Field label="Location" value={p.location} />
+                <Field label="Location" value={p.location || p.address} />
                 <Field label="Date of Joining" value={fmtDate(p.dateOfJoining || p.date_of_joining)} />
                 {p.about && (
                   <>
