@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 
-const DEFAULT_MODEL = process.env.GROQ_MODEL || "llama-3.1-70b-versatile";
+const DEFAULT_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const FALLBACK_MODELS = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
 
 function buildSystemPrompt() {
 	return [
@@ -59,26 +60,42 @@ export async function planAgentAction({ message, user }) {
 	}
 
 	const client = new Groq({ apiKey });
-	let completion;
-	try {
-		completion = await client.chat.completions.create({
-			model: DEFAULT_MODEL,
-			temperature: 0.1,
-			response_format: { type: "json_object" },
-			messages: [
-				{ role: "system", content: buildSystemPrompt() },
-				{
-					role: "user",
-					content: JSON.stringify({
-						message,
-						userRole: user?.role || null,
-					}),
-				},
-			],
-		});
-	} catch (err) {
-		const status = err?.status ?? err?.response?.status;
-		const detail = err?.message || "Unknown Groq SDK error";
+	const modelsToTry = [...new Set([DEFAULT_MODEL, ...FALLBACK_MODELS])];
+	let completion = null;
+	let lastErr = null;
+
+	for (const model of modelsToTry) {
+		try {
+			completion = await client.chat.completions.create({
+				model,
+				temperature: 0.1,
+				response_format: { type: "json_object" },
+				messages: [
+					{ role: "system", content: buildSystemPrompt() },
+					{
+						role: "user",
+						content: JSON.stringify({
+							message,
+							userRole: user?.role || null,
+						}),
+					},
+				],
+			});
+			break;
+		} catch (err) {
+			lastErr = err;
+			const detail = String(err?.message || "");
+			const canRetryModel =
+				detail.includes("model_decommissioned") ||
+				detail.includes("no longer supported") ||
+				detail.includes("not found");
+			if (!canRetryModel) break;
+		}
+	}
+
+	if (!completion) {
+		const status = lastErr?.status ?? lastErr?.response?.status;
+		const detail = lastErr?.message || "Unknown Groq SDK error";
 		throw new Error(`Groq API failed${status ? ` (${status})` : ""}: ${detail}`);
 	}
 

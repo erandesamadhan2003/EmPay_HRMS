@@ -23,6 +23,17 @@ function currentMonthLabel() {
 	return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+function normalizeMonthInput(value) {
+	if (typeof value !== "string") return currentMonthLabel();
+	const s = value.trim().toLowerCase();
+	if (!s) return currentMonthLabel();
+	if (s === "current month" || s === "this month" || s === "current" || s === "this") {
+		return currentMonthLabel();
+	}
+	if (/^\d{4}-(0[1-9]|1[0-2])$/.test(s)) return s;
+	return currentMonthLabel();
+}
+
 function serializeAttendanceRows(rows) {
 	return rows.map((r) => ({
 		id: r.id,
@@ -83,7 +94,7 @@ async function executeAction(req, plan) {
 	}
 
 	if (action === "get_my_attendance_current_month") {
-		const month = typeof args.month === "string" ? args.month : currentMonthLabel();
+		const month = normalizeMonthInput(args.month);
 		const { page, limit } = normalizePagination(args);
 		const total = await countUserAttendanceEntriesMonth(req.db, req.user.id, month);
 		const rows = await listUserAttendanceMonth(req.db, req.user.id, month, page, limit);
@@ -125,7 +136,7 @@ async function executeAction(req, plan) {
 			throw Object.assign(new Error("Forbidden"), { status: 403 });
 		}
 
-		const month = typeof args.month === "string" ? args.month : currentMonthLabel();
+		const month = normalizeMonthInput(args.month);
 		const { page, limit } = normalizePagination(args);
 		const total = await countUserAttendanceEntriesMonth(req.db, userId, month);
 		const rows = await listUserAttendanceMonth(req.db, userId, month, page, limit);
