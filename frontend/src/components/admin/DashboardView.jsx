@@ -162,7 +162,7 @@ export default function DashboardView() {
   };
 
   // Map API employees to table format
-  const employees = (empData?.data || empData || []);
+  const employees = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
   const recentEmployees = employees.slice(-5).reverse().map(e => ({
     name: `${e.firstName || ''} ${e.lastName || ''}`.trim() || e.name || 'Unknown',
     dept: e.department?.name || e.departmentName || '—',
@@ -172,7 +172,7 @@ export default function DashboardView() {
   }));
 
   // Map API leave requests
-  const rawLeaves = leaveReqs?.data || leaveReqs || [];
+  const rawLeaves = Array.isArray(leaveReqs?.data) ? leaveReqs.data : (Array.isArray(leaveReqs) ? leaveReqs : []);
   const pendingLeaves = rawLeaves.slice(0, 4).map((l, i) => {
     const nm = l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName||''}`.trim() : (l.employeeName || 'Employee');
     const ini = nm.split(' ').map(x => x[0]).join('');

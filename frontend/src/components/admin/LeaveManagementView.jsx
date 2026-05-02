@@ -34,8 +34,8 @@ export default function LeaveManagementView(){
   const { approveRequest, rejectRequest, isApproving, isRejecting } = useTimeOffRequestMutations();
 
   // Map API response
-  const rawReqs = reqData?.data?.items || reqData?.items || reqData?.data || reqData || [];
-  const leaves = (Array.isArray(rawReqs) ? rawReqs : []).map(l => ({
+  const rawReqs = Array.isArray(reqData?.data) ? reqData.data : (Array.isArray(reqData) ? reqData : []);
+  const leaves = rawReqs.map(l => ({
     id: l._id || l.id,
     employeeName: l.employee?.firstName ? `${l.employee.firstName} ${l.employee.lastName||''}`.trim() : (l.employeeName || 'Employee'),
     employeeId: l.employee?.employeeId || l.employeeId || '—',

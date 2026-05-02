@@ -57,13 +57,11 @@ export default function AttendanceOverviewView(){
   const [modal,setModal]=useState(null);
 
   // Build department filter from API
-  const rawDepts = deptData?.data?.items || deptData?.items || deptData?.data || deptData || [];
-  const apiDepts = (Array.isArray(rawDepts) ? rawDepts : []).map(d => d.name).filter(Boolean);
+  const apiDepts = (Array.isArray(deptData?.data) ? deptData.data : (Array.isArray(deptData) ? deptData : [])).map(d => d.name).filter(Boolean);
   const DEPTS_DYNAMIC = ['All', ...new Set(apiDepts.length ? apiDepts : ['Engineering','HR','Finance','Operations','Marketing'])];
 
   // Use API employees or fallback to generated data
-  const rawEmps = empData?.data?.items || empData?.items || empData?.data || empData || [];
-  const apiEmps = Array.isArray(rawEmps) ? rawEmps : [];
+  const apiEmps = Array.isArray(empData?.data) ? empData.data : (Array.isArray(empData) ? empData : []);
   const data = useMemo(() => {
     if (apiEmps.length > 0) {
       return apiEmps.map((e, idx) => {
@@ -139,7 +137,7 @@ export default function AttendanceOverviewView(){
               <div onClick={nextMonth} style={{cursor:'pointer',display:'flex'}}><ChevIco dir="right"/></div>
             </div>
             <select value={deptF} onChange={e=>setDeptF(e.target.value)} style={{background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'8px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',cursor:'pointer'}}>
-              {DEPTS_FILTER.map(d=><option key={d} value={d} style={{background:C.surface}}>{d==='All'?'All Departments':d}</option>)}
+              {DEPTS_DYNAMIC.map(d=><option key={d} value={d} style={{background:C.surface}}>{d==='All'?'All Departments':d}</option>)}
             </select>
             <button style={{background:'transparent',border:`1px solid ${C.teal}`,borderRadius:10,padding:'8px 16px',color:C.teal,fontSize:13,fontWeight:500,cursor:'pointer',fontFamily:'Poppins,sans-serif',display:'flex',alignItems:'center',gap:6,transition:'all .2s'}}
               onMouseEnter={e=>{e.currentTarget.style.background=C.tealLight}} onMouseLeave={e=>{e.currentTarget.style.background='transparent'}}>
