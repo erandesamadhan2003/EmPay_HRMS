@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { useAuth, useTimeOffRequests, useCheckInPolicy, useAttendanceMutations } from '../../hooks';
+import { useAuth, useTimeOffRequests, useCheckInPolicy, useAttendanceMutations, useMyTimeOffAllocations, useMyAttendance } from '../../hooks';
 import { LoadingSpinner, ErrorState } from '../admin/shared';
 
 const C = {
@@ -52,11 +52,6 @@ const CSSIcon = ({ type, color, size = 24 }) => {
   return null;
 };
 
-const ATT_DATA = [
-  { day: 'Mon', hours: 8.5 }, { day: 'Tue', hours: 7.8 },
-  { day: 'Wed', hours: 8.2 }, { day: 'Thu', hours: 9.1 },
-  { day: 'Fri', hours: 8.0 }, { day: 'Sat', hours: 0 }, { day: 'Sun', hours: 0 }
-];
 
 export default function EmployeeDashboardView() {
   const { user } = useAuth();
@@ -77,6 +72,36 @@ export default function EmployeeDashboardView() {
 
   const rawReqs = Array.isArray(reqData?.data) ? reqData.data : (Array.isArray(reqData) ? reqData : []);
   const myLeaves = rawReqs.filter(r => r.employeeId === user?.id || r.user_id === user?.id).slice(0, 3);
+
+  // Dynamic Data
+  const { data: allocData } = useMyTimeOffAllocations();
+  const rawAllocs = allocData?.data?.items ?? allocData?.data ?? allocData ?? [];
+  const allocs = Array.isArray(rawAllocs) ? rawAllocs : [];
+  
+  let annualLeaves = 0, sickLeaves = 0;
+  allocs.forEach(a => {
+    const rem = Number(a.days || a.totalDays) - Number(a.usedDays || 0);
+    if (a.leaveType === 'pto' || a.type === 'pto') annualLeaves += rem;
+    if (a.leaveType === 'sick' || a.type === 'sick') sickLeaves += rem;
+  });
+
+  const now = new Date();
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const { data: attData } = useMyAttendance({ month: monthStr });
+  const rawRecords = attData?.data?.items ?? attData?.data ?? attData ?? [];
+  const records = Array.isArray(rawRecords) ? rawRecords : [];
+  
+  const dynamicAttData = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().slice(0, 10);
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const record = records.find(r => r.date && r.date.startsWith(dateStr));
+    return { day: dayName, hours: record?.workHours || record?.work_hours ? Number(record.workHours || record.work_hours) : 0 };
+  });
+
+  const totalHoursPast7Days = dynamicAttData.reduce((acc, val) => acc + val.hours, 0);
+  const avgHours = (totalHoursPast7Days / 7).toFixed(1);
 
   const getDistanceMeters = (lat1, lon1, lat2, lon2) => {
     const R = 6371e3;
@@ -130,9 +155,9 @@ export default function EmployeeDashboardView() {
   };
 
   const statCards = [
-    { label: 'Annual Leaves', value: '12', subtitle: 'Remaining this year', icon: 'sun', color: C.teal },
-    { label: 'Sick Leaves', value: '4', subtitle: 'Remaining this year', icon: 'calendar', color: C.danger },
-    { label: 'Avg Working Hours', value: '8.2h', subtitle: 'This week', icon: 'clock', color: C.cyan }
+    { label: 'Annual Leaves', value: `${annualLeaves}`, subtitle: 'Remaining this year', icon: 'sun', color: C.teal },
+    { label: 'Sick Leaves', value: `${sickLeaves}`, subtitle: 'Remaining this year', icon: 'calendar', color: C.danger },
+    { label: 'Avg Working Hours', value: `${avgHours}h`, subtitle: 'Past 7 days', icon: 'clock', color: C.cyan }
   ];
 
   return (
@@ -206,7 +231,7 @@ export default function EmployeeDashboardView() {
           </div>
           <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={ATT_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={dynamicAttData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorHrs" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={C.accent} stopOpacity={0.3}/>

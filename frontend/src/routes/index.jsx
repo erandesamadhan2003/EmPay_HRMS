@@ -83,10 +83,10 @@ const router = createBrowserRouter([
 
   // Payroll
   { path: "/payroll/dashboard", element: <PayrollDashboard /> },
-  { path: "/payroll/management", element: <PayrollManagement /> },
+  { path: "/payroll/manage", element: <PayrollManagement /> },
   { path: "/payroll/payslips", element: <PayrollPayslips /> },
   { path: "/payroll/salary", element: <PayrollSalary /> },
-  { path: "/payroll/leaves", element: <PayrollLeaves /> },
+  { path: "/payroll/leave-requests", element: <PayrollLeaves /> },
   { path: "/payroll/reports", element: <PayrollReports /> },
   { path: "/payroll/profile", element: <PayrollProfile /> },
 
