@@ -5,8 +5,8 @@ import { LoadingSpinner, ErrorState } from '../admin/shared';
 
 const C = {
   bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24',
-  accent: '#7C3AED', accentLight: 'rgba(124,58,237,0.15)',
-  accentGlow: 'rgba(124,58,237,0.25)', cyan: '#06B6D4',
+  accent: '#0D9488', accentLight: 'rgba(13,148,136,0.15)',
+  accentGlow: 'rgba(13,148,136,0.25)', cyan: '#06B6D4',
   teal: '#14B8A6', tealLight: 'rgba(20,184,166,0.15)',
   success: '#10B981', warning: '#F59E0B', danger: '#EF4444',
   text: '#F1F0FF', muted: '#8B8A9B', border: '#2E2E3E',

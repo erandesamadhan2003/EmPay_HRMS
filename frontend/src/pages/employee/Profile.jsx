@@ -1,6 +1,5 @@
 import MainLayout from '../../components/layouts/MainLayout';
-
-const C = { text: '#F1F0FF', muted: '#8B8A9B' };
+import ProfileView from '../../components/employee/ProfileView';
 
 export default function EmployeeProfile() {
   const stored = JSON.parse(localStorage.getItem('user') || '{}');
@@ -9,10 +8,7 @@ export default function EmployeeProfile() {
 
   return (
     <MainLayout role="employee" pageTitle="Profile" userName={userName} userInitials={userInitials}>
-      <div style={{ fontFamily: 'Poppins, sans-serif' }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, color: C.text, marginBottom: 8 }}>My Profile</h2>
-        <p style={{ fontSize: 14, color: C.muted, fontWeight: 300 }}>This page is under construction.</p>
-      </div>
+      <ProfileView />
     </MainLayout>
   );
 }
