@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEmployeeProfile, useEmployeeMutations, useAuth } from '../../hooks';
 import { LoadingSpinner, ErrorState } from '../admin/shared';
+import ResumeUploader from '../ResumeUploader';
 
 const C = {
   bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24',
@@ -66,6 +67,8 @@ export default function ProfileView() {
       phone: p.phone || user?.phone || '',
       about: p.about || '',
       location: p.location || '',
+      skills: Array.isArray(p.skills) ? p.skills.join(', ') : '',
+      certifications: Array.isArray(p.certifications) ? p.certifications.join(', ') : '',
       // private
       gender: p.gender || '',
       nationality: p.nationality || '',
@@ -93,6 +96,8 @@ export default function ProfileView() {
         profile: {
           about: form.about || undefined,
           location: form.location || undefined,
+          skills: form.skills ? form.skills.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+          certifications: form.certifications ? form.certifications.split(',').map(s => s.trim()).filter(Boolean) : undefined,
           gender: form.gender || undefined,
           nationality: form.nationality || undefined,
           maritalStatus: form.maritalStatus || undefined,
@@ -207,6 +212,8 @@ export default function ProfileView() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                 {fi('Phone', 'phone', 'tel')}
                 {fi('Location', 'location')}
+                <div style={{ gridColumn: '1 / -1' }}>{fi('Skills (comma separated)', 'skills')}</div>
+                <div style={{ gridColumn: '1 / -1' }}>{fi('Certifications (comma separated)', 'certifications')}</div>
                 <div style={{ gridColumn: '1 / -1' }}>{fi('About / Bio', 'about')}</div>
               </div>
             ) : (
@@ -233,7 +240,47 @@ export default function ProfileView() {
                     </div>
                   </div>
                 )}
+                {Array.isArray(p.certifications) && p.certifications.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <span style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>Certifications: </span>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                      {p.certifications.map((s, i) => <span key={i} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 8, background: `${C.teal}15`, color: C.teal }}>{s}</span>)}
+                    </div>
+                  </div>
+                )}
               </>
+            )}
+
+            {/* RESUME UPLOADER */}
+            {!editing && (
+              <div style={{ marginTop: 32, paddingTop: 32, borderTop: `1px solid ${C.border}` }}>
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: C.text, marginBottom: 16 }}>Update Profile via Resume</h3>
+                <ResumeUploader 
+                  onParsed={async (parsed) => {
+                    setSaving(true);
+                    setSaveMsg('');
+                    setSaveErr('');
+                    try {
+                      await updateEmployeeMe({
+                        phone: parsed.phone || undefined,
+                        profile: {
+                          about: parsed.about || undefined,
+                          location: parsed.location || undefined,
+                          skills: parsed.skills || undefined,
+                          certifications: parsed.certifications || undefined,
+                        },
+                      });
+                      await refetch();
+                      setSaveMsg('Profile updated from resume successfully.');
+                    } catch (e) {
+                      setSaveErr(e?.response?.data?.message || 'Failed to update profile from resume.');
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  onError={(err) => setSaveErr(err)}
+                />
+              </div>
             )}
           </div>
         )}

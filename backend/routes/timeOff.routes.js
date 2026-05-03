@@ -17,7 +17,6 @@ import {
 
 const router = express.Router();
 
-/** Mounted at app.use("/api/time-off", …) */
 router.get("/allocations", authRequired, requireRoles("admin", "hr_officer"), getAllocations);
 router.post("/allocations", authRequired, requireRoles("admin", "hr_officer"), createAllocationController);
 router.get("/allocations/me", authRequired, getMyAllocationsController);

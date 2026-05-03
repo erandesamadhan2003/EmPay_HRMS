@@ -18,7 +18,9 @@ export function authRequired(req, res, next) {
 export function requireRole(role) {
     return (req, res, next) => {
         if (!req.user) return res.status(401).json({ success: false, message: 'Unauthenticated' });
-        if (req.user.role !== role) return res.status(403).json({ success: false, message: 'Forbidden' });
+        const userRole = String(req.user.role || '').toLowerCase();
+        const allowedRole = String(role || '').toLowerCase();
+        if (userRole !== allowedRole) return res.status(403).json({ success: false, message: 'Forbidden' });
         return next();
     };
 }
@@ -26,7 +28,9 @@ export function requireRole(role) {
 export function requireRoles(...roles) {
     return (req, res, next) => {
         if (!req.user) return res.status(401).json({ success: false, message: 'Unauthenticated' });
-        if (!roles.includes(req.user.role)) return res.status(403).json({ success: false, message: 'Forbidden' });
+        const userRole = String(req.user.role || '').toLowerCase();
+        const allowedRoles = roles.map(r => String(r).toLowerCase());
+        if (!allowedRoles.includes(userRole)) return res.status(403).json({ success: false, message: 'Forbidden' });
         return next();
     };
 }

@@ -68,9 +68,6 @@ export default function ApplyLeaveView() {
     if (form.startDate && form.endDate && new Date(form.endDate) < new Date(form.startDate)) {
       e.endDate = 'End date must be after start date';
     }
-    if (requestedDays > remainingDays) {
-      e.days = `You only have ${remainingDays} days remaining, but requested ${requestedDays} days`;
-    }
     if (!form.reason.trim()) e.reason = 'Reason is required';
     return e;
   };
@@ -216,8 +213,8 @@ export default function ApplyLeaveView() {
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Status</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: remainingDays >= requestedDays ? C.success : C.danger }}>
-                    {remainingDays >= requestedDays ? '✓ OK' : '✕ Insufficient'}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: remainingDays >= requestedDays ? C.success : C.warning }}>
+                    {remainingDays >= requestedDays ? '✓ OK' : '⚠️ Balance Exceeded'}
                   </div>
                 </div>
               </div>

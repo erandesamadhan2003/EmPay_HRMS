@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parsePdfText, parseResumeWithGroq } from '../../utils/resumeParser';
+import { parsePdfText, parseResumeWithGroq } from '../utils/resumeParser';
 
 const C = {
     bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24',

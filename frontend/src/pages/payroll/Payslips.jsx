@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import MainLayout from '../../components/layouts/MainLayout';
-import { usePayslips, usePayslipMutations } from '../../hooks';
+import { usePayslips } from '../../hooks';
+import { payslipsService } from '../../services/payslips.service';
+import { generatePayslipPdf } from '../../utils/pdfGenerator';
 import { LoadingSpinner, ErrorState } from '../../components/admin/shared';
 
 const C = {
@@ -31,22 +33,22 @@ export default function PayrollPayslips() {
   const userInitials = userName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   const [search, setSearch] = useState('');
+  const [downloadingId, setDownloadingId] = useState(null);
   const { data: payslipsData, isLoading, error, refetch } = usePayslips({ search, limit: 50 });
-  const { loadPayslipPdfBlob } = usePayslipMutations();
 
   const rawPayslips = payslipsData?.data?.items ?? payslipsData?.data ?? payslipsData ?? [];
   const payslips = Array.isArray(rawPayslips) ? rawPayslips : [];
 
   const handleDownload = async (slip) => {
     try {
-      if (loadPayslipPdfBlob) {
-        const blob = await loadPayslipPdfBlob(slip.id);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `payslip_${slip.user?.name?.replace(/\s+/g, '_') || 'employee'}.pdf`; a.click();
-        URL.revokeObjectURL(url);
-      }
+      setDownloadingId(slip.id);
+      const res = await payslipsService.getById(slip.id);
+      const fullData = res.data || res;
+      generatePayslipPdf(fullData);
     } catch (e) {
       console.error('Download failed:', e);
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -106,8 +108,17 @@ export default function PayrollPayslips() {
                   </div>
                 </div>
 
-                <button className="ps-abtn" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleDownload(slip)}>
-                  <DlIco color={C.teal} /> Download PDF
+                <button 
+                  className="ps-abtn" 
+                  style={{ width: '100%', justifyContent: 'center', opacity: downloadingId === slip.id ? 0.7 : 1 }} 
+                  onClick={() => handleDownload(slip)}
+                  disabled={downloadingId === slip.id}
+                >
+                  {downloadingId === slip.id ? (
+                    <>Generating PDF...</>
+                  ) : (
+                    <><DlIco color={C.teal} /> Download PDF</>
+                  )}
                 </button>
               </div>
             ))}
