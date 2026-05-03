@@ -49,7 +49,7 @@ const Styles = () => (
 );
 
 const PAGE_SIZE = 10;
-const fmt = v => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 0 });
+const fmt = v => '₹' + Math.max(0, Number(v || 0)).toLocaleString('en-IN', { minimumFractionDigits: 0 });
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—';
 const fmtFull = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
 

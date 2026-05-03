@@ -11,7 +11,8 @@ import { generateAccountVerifiedTemplate } from "../templates/accountVerifiedEma
 import { generateAccountRejectedTemplate } from "../templates/accountRejectedEmail.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
 import { serializePagination } from "../utils/serializer.js";
-import { cacheWrapper, CACHE_EXPIRY } from "../utils/redisCache.js";
+import { cacheWrapper, CACHE_EXPIRY, deleteCachePattern } from "../utils/redisCache.js";
+import { createAuditLog } from "../models/AuditLog.js";
 
 export async function reviewCompanyRequest(req, res) {
 	try {
@@ -54,6 +55,16 @@ export async function reviewCompanyRequest(req, res) {
 					text: emailTemplate.text,
 				});
 			}
+			// Audit log: approve
+			await createAuditLog(req.db, {
+				companyId: requestRow.company_id,
+				actorId: req.user.id,
+				action: "APPROVE_COMPANY_REQUEST",
+				entityType: "company_request",
+				entityId: id,
+				payloadJson: JSON.stringify({ companyId: requestRow.company_id, reviewerNotes: reviewer_notes }),
+				ipAddress: req.ip || null,
+			});
 		} else if (action === "reject") {
 			const rejectedUser = await findUserById(req.db, requestRow.admin_user_id);
 			const company = await findCompanyById(req.db, requestRow.company_id);
@@ -71,7 +82,25 @@ export async function reviewCompanyRequest(req, res) {
 					text: emailTemplate.text,
 				});
 			}
+			// Audit log: reject
+			await createAuditLog(req.db, {
+				companyId: requestRow.company_id,
+				actorId: req.user.id,
+				action: "REJECT_COMPANY_REQUEST",
+				entityType: "company_request",
+				entityId: id,
+				payloadJson: JSON.stringify({ companyId: requestRow.company_id, reason: reviewer_notes }),
+				ipAddress: req.ip || null,
+			});
 		}
+
+		// Bust all superadmin caches so the UI reflects the change immediately
+		await Promise.allSettled([
+			deleteCachePattern('superadmin:requests:*'),
+			deleteCachePattern('superadmin:dashboard:*'),
+			deleteCachePattern('superadmin:analytics:*'),
+			deleteCachePattern('superadmin:activity:*'),
+		]);
 
 		return res.json(
 			successResponse(

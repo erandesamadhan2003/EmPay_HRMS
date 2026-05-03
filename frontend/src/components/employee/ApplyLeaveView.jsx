@@ -47,7 +47,7 @@ export default function ApplyLeaveView() {
   const selectedAlloc = allocs.find(a => a.id === form.allocationId);
   const totalDays = selectedAlloc ? Number(selectedAlloc.total_days ?? selectedAlloc.totalDays ?? 0) : 0;
   const usedDays = selectedAlloc ? Number(selectedAlloc.used_days ?? selectedAlloc.usedDays ?? 0) : 0;
-  const remainingDays = totalDays - usedDays;
+  const remainingDays = Math.max(0, totalDays - usedDays);
 
   // Calculate days for current selection
   const requestedDays = useMemo(() => {
@@ -129,9 +129,10 @@ export default function ApplyLeaveView() {
             const type = (a.leave_type || a.leaveType || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             const total = Number(a.total_days ?? a.totalDays ?? 0);
             const used = Number(a.used_days ?? a.usedDays ?? 0);
+            const bal = Math.max(0, total - used);
             return (
               <div key={i} style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 20, fontWeight: 700, color: C.teal }}>{total - used}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: C.teal }}>{bal}</div>
                 <div style={{ fontSize: 10, color: C.muted }}>{type}</div>
               </div>
             );
@@ -175,7 +176,7 @@ export default function ApplyLeaveView() {
                   const type = (a.leave_type || a.leaveType || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                   const total = Number(a.total_days ?? a.totalDays ?? 0);
                   const used = Number(a.used_days ?? a.usedDays ?? 0);
-                  const remaining = total - used;
+                  const remaining = Math.max(0, total - used);
                   return (
                     <option key={a.id} value={a.id} style={{ background: C.surface }}>
                       {type} — {remaining} day{remaining !== 1 ? 's' : ''} remaining

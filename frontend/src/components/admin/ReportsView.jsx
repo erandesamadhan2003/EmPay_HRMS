@@ -146,7 +146,7 @@ export default function ReportsView(){
   const inactiveEmps = emps.length - activeEmps;
 
   const tabs = ['Attendance', 'Leave', 'Payroll', 'Employees'];
-  const fmt = v => '₹' + (v || 0).toLocaleString('en-IN');
+  const fmt = v => '₹' + (Math.max(0, v || 0)).toLocaleString('en-IN');
 
   if (anyLoading) return <LoadingSpinner message="Loading reports..." />;
 

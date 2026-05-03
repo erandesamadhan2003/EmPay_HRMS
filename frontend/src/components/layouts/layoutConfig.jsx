@@ -49,6 +49,17 @@ export const NAV_CONFIG = {
     { label: 'Assistant', icon: 'activity', path: '/hr/assistant' },
     { label: 'Profile', icon: 'user', path: '/hr/profile' },
   ],
+  hr_officer: [
+    { label: 'Dashboard', icon: 'grid', path: '/hr/dashboard' },
+    { label: 'Employees', icon: 'users', path: '/hr/employees' },
+    { label: 'Attendance Monitor', icon: 'clock', path: '/hr/attendance' },
+    { label: 'Leave Allocation', icon: 'gift', path: '/hr/leave-allocation' },
+    { label: 'Leave Requests', icon: 'calendar', path: '/hr/leave-requests' },
+    { label: 'Apply Leave', icon: 'plus-circle', path: '/hr/apply-leave' },
+    { label: 'My Leaves', icon: 'file-text', path: '/hr/my-leaves' },
+    { label: 'Assistant', icon: 'activity', path: '/hr/assistant' },
+    { label: 'Profile', icon: 'user', path: '/hr/profile' },
+  ],
   payroll: [
     { label: 'Dashboard', icon: 'grid', path: '/payroll/dashboard' },
     { label: 'Payroll Management', icon: 'dollar', path: '/payroll/management' },

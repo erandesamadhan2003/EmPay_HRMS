@@ -4,7 +4,7 @@ import { LoadingSpinner, ErrorState } from './shared';
 
 const C = { bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24', accent: '#7C3AED', accentLight: 'rgba(124,58,237,0.15)', teal: '#14B8A6', tealLight: 'rgba(20,184,166,0.15)', cyan: '#06B6D4', warning: '#F59E0B', danger: '#EF4444', text: '#F1F0FF', muted: '#8B8A9B', border: '#2E2E3E' };
 const ST_C = { Paid: C.teal, Pending: C.warning, Processing: C.cyan, paid: C.teal, pending: C.warning, processing: C.cyan, draft: C.muted, Draft: C.muted };
-const fmt = v => '₹' + (v || 0).toLocaleString('en-IN');
+const fmt = v => '₹' + (Math.max(0, v || 0)).toLocaleString('en-IN');
 
 const numWords = (n) => { const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']; const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']; if (n === 0) return 'Zero'; let s = ''; if (Math.floor(n / 100000) > 0) { s += a[Math.floor(n / 100000)] + ' Lakh '; n %= 100000; } if (Math.floor(n / 1000) > 0) { const t = Math.floor(n / 1000); s += (t < 20 ? a[t] : b[Math.floor(t / 10)] + (t % 10 ? ' ' + a[t % 10] : '')) + ' Thousand '; n %= 1000; } if (Math.floor(n / 100) > 0) { s += a[Math.floor(n / 100)] + ' Hundred '; n %= 100; } if (n > 0) { if (n < 20) s += a[n]; else s += b[Math.floor(n / 10)] + (n % 10 ? ' ' + a[n % 10] : ''); } return s.trim() + ' Only'; };
 

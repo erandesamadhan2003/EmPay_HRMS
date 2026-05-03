@@ -10,7 +10,7 @@ const C = {
   text: '#F1F0FF', muted: '#8B8A9B', border: '#2E2E3E',
 };
 
-const fmt = v => '₹' + (v || 0).toLocaleString('en-IN');
+const fmt = v => '₹' + (Math.max(0, v || 0)).toLocaleString('en-IN');
 
 const DlIco = ({color=C.teal}) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 const XIco = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.muted} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
@@ -54,10 +54,10 @@ export default function PayrunDetail({ payrun, onBack }) {
     // name resolution: list DTO uses employeeName, detail DTO uses user.name
     _name:       p.employeeName  || p.employee_name  || p.user?.name  || 'Unknown',
     _code:       p.employeeCode  || p.employee_code  || p.user?.loginId || p.user?.login_id || '—',
-    _gross:      p.grossSalary   || p.gross_salary   || p.gross   || 0,
-    _net:        p.netSalary     || p.net_salary     || p.net     || 0,
-    _deductions: p.totalDeductions || p.total_deductions || 0,
-    _payDays:    p.payableDays   || p.payable_days   || 0,
+    _gross:      Math.max(0, Number(p.grossSalary   || p.gross_salary   || p.gross   || 0)),
+    _net:        Math.max(0, Number(p.netSalary     || p.net_salary     || p.net     || 0)),
+    _deductions: Math.max(0, Number(p.totalDeductions || p.total_deductions || 0)),
+    _payDays:    Math.max(0, Number(p.payableDays   || p.payable_days   || 0)),
   }));
 
   const handleDownload = async (slip) => {

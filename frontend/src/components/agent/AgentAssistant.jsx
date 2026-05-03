@@ -19,7 +19,7 @@ function formatTime(value) {
 
 function formatMoney(value) {
 	if (value == null || Number.isNaN(Number(value))) return "-";
-	return Number(value).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
+	return Number(Math.max(0, value)).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 }
 
 function summarizeActionPayload(action, data) {

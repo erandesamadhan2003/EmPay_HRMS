@@ -79,8 +79,8 @@ export default function MyLeavesView() {
           const type = a.leave_type || a.leaveType || 'paid_time_off';
           const total = Number(a.total_days ?? a.totalDays ?? a.days ?? 0);
           const used = Number(a.used_days ?? a.usedDays ?? 0);
-          const remaining = total - used;
-          const pct = total > 0 ? (used / total) * 100 : 0;
+          const remaining = Math.max(0, total - used);
+          const pct = total > 0 ? (Math.min(used, total) / total) * 100 : 0;
           const color = LEAVE_COLORS[type] || C.accent;
           return (
             <div key={a.id || i} className="lv-card" style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, padding: 24, animationDelay: `${i * 80}ms` }}>
@@ -94,7 +94,7 @@ export default function MyLeavesView() {
                 <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 3, transition: 'width .5s ease' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                <span style={{ fontSize: 10, color: C.muted }}>Used: {used}</span>
+                <span style={{ fontSize: 10, color: C.muted }}>Used: {Math.min(used, total)}</span>
                 <span style={{ fontSize: 10, color: C.muted }}>Balance: {remaining}</span>
               </div>
             </div>

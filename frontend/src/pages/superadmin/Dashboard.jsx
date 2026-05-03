@@ -157,7 +157,7 @@ export default function Dashboard() {
               <div style={{ height: '240px', animation: 'sa-shimmer 2s infinite linear', backgroundColor: C.surface, backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%', borderRadius: '12px' }}></div>
             ) : requests.length === 0 ? (
               <div style={{ padding: '40px 0', textAlign: 'center', color: C.teal }}>
-                <div style={{ fontSize: '32px', marginBottom: '12px' }}>🎉</div>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}></div>
                 <div style={{ fontSize: '14px', fontWeight: 500 }}>No pending requests</div>
                 <div style={{ fontSize: '12px', color: C.muted, marginTop: '4px' }}>You're all caught up!</div>
               </div>
