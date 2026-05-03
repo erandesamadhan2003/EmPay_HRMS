@@ -38,7 +38,8 @@ export default function DepartmentManagementView() {
   const DEPTS = (Array.isArray(rawDepts) ? rawDepts : []).map(d => ({
     id: d.id,
     name: d.name || 'Unknown',
-    headName: '—',        // not returned by list API; shown when available
+    headName: d.headName || '—',
+    managerId: d.managerId || '',
     employeeCount: d.employeeCount ?? 0,
     createdDate: d.createdAt || '',
     description: d.description || '',
@@ -78,10 +79,10 @@ export default function DepartmentManagementView() {
     if (!form.name.trim()) return setSaveError('Department name is required.');
     try {
       if (modal === 'add') {
-        await createDepartment({ name: form.name.trim(), description: form.description });
+        await createDepartment({ name: form.name.trim(), description: form.description, managerId: form.managerId });
         setSaveSuccess('Department created successfully!');
       } else if (modal === 'edit' && modalDept) {
-        await updateDepartment({ id: modalDept.id, data: { name: form.name.trim(), description: form.description } });
+        await updateDepartment({ id: modalDept.id, data: { name: form.name.trim(), description: form.description, managerId: form.managerId } });
         setSaveSuccess('Department updated successfully!');
       }
       setTimeout(() => close(), 1200);

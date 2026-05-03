@@ -320,8 +320,11 @@ export async function updateEmployee(req, res) {
 		if (req.body.name !== undefined) snakeUser.name = req.body.name;
 		if (req.body.phone !== undefined) snakeUser.phone = req.body.phone;
 		if (req.body.avatarUrl !== undefined) snakeUser.avatar_url = req.body.avatarUrl;
-		if (req.user.role === "admin" && req.body.role !== undefined) {
+		if (["admin", "hr_officer"].includes(req.user.role) && req.body.role !== undefined) {
 			snakeUser.role = req.body.role;
+		}
+		if (req.body.isActive !== undefined) {
+			snakeUser.is_active = req.body.isActive;
 		}
 
 		if (Object.keys(snakeUser).length) {
@@ -338,6 +341,8 @@ export async function updateEmployee(req, res) {
 		}
 
 		const fresh = await findUserFullProfile(req.db, id);
+		await invalidateUserCache(id);
+		await invalidateEmployeeCache(companyId);
 		return res.json(
 			successResponse(
 				{ id: fresh.id },

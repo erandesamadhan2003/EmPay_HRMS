@@ -68,8 +68,8 @@ export default function EmployeeManagement() {
     email: e.email || '',
     phone: e.profile?.phone_number || '',
     department: e.profile?.department?.name || 'Unassigned',
-    role: e.profile?.job_title || 'Employee',
-    joinDate: e.profile?.hire_date ? new Date(e.profile?.hire_date).toISOString().split('T')[0] : '',
+    role: e.role === 'hr_officer' ? 'HR Officer' : e.role === 'payroll_officer' ? 'Payroll Officer' : 'Employee',
+    joinDate: e.profile?.dateOfJoining ? new Date(e.profile?.dateOfJoining).toISOString().split('T')[0] : '',
     status: e.isActive ? 'Active' : 'Inactive',
     avatar: null
   }));
@@ -133,28 +133,31 @@ export default function EmployeeManagement() {
   const handleSave = async () => {
     try {
       if (modalMode === 'add') {
+        const deptObj = rawDepts.find(d => d.name === formData.department);
         const payload = {
           name: formData.name,
           email: formData.email,
           loginId: `HR${generateNamePart(formData.name)}${formData.joinDate ? formData.joinDate.substring(0, 4) : new Date().getFullYear()}${String(employees.length + 1).padStart(4, '0')}`,
-          password: 'password123', // auto-gen in real world
-          role: 'employee',
-          profile: {
-            phone_number: formData.phone,
-            job_title: formData.role,
-            hire_date: formData.joinDate,
-          }
+          password: 'password123',
+          role: formData.role === 'HR Officer' ? 'hr_officer' : formData.role === 'Payroll Officer' ? 'payroll_officer' : 'employee',
+          phone: formData.phone,
+          departmentId: deptObj ? deptObj.id : undefined,
+          designation: formData.role,
+          dateOfJoining: formData.joinDate,
         };
         await createEmployee(payload);
       } else if (modalMode === 'edit') {
+        const deptObj = rawDepts.find(d => d.name === formData.department);
         const payload = {
           name: formData.name,
           email: formData.email,
           isActive: formData.status === 'Active',
+          phone: formData.phone,
+          role: formData.role === 'HR Officer' ? 'hr_officer' : formData.role === 'Payroll Officer' ? 'payroll_officer' : 'employee',
           profile: {
-            phone_number: formData.phone,
-            job_title: formData.role,
-            hire_date: formData.joinDate,
+            designation: formData.role,
+            dateOfJoining: formData.joinDate,
+            departmentId: deptObj ? deptObj.id : undefined,
           }
         };
         await updateEmployee({ id: formData.id, data: payload });
@@ -470,11 +473,9 @@ export default function EmployeeManagement() {
               <div>
                 <label style={LabelBase}>Role</label>
                 <select 
-                  style={{ ...InputBase, opacity: modalMode === 'edit' ? 0.6 : 1, cursor: modalMode === 'edit' ? 'not-allowed' : 'pointer' }} 
+                  style={InputBase} 
                   value={formData.role} 
                   onChange={e => setFormData({...formData, role: e.target.value})}
-                  disabled={modalMode === 'edit'}
-                  title={modalMode === 'edit' ? "Role change is restricted" : ""}
                 >
                   <option value="Employee">Employee</option>
                   <option value="HR Officer">HR Officer</option>

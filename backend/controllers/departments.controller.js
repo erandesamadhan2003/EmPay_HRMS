@@ -47,12 +47,12 @@ export async function getDepartments(req, res) {
 export async function createDept(req, res) {
 	try {
 		const companyId = req.user?.company_id;
-		const { name } = req.body;
+		const { name, description, managerId } = req.body;
 		if (!companyId) {
 			return res.status(400).json(errorResponse("Company context required"));
 		}
 		if (!name) return res.status(400).json(errorResponse("Department name required"));
-		const row = await createDepartment(req.db, { companyId, name });
+		const row = await createDepartment(req.db, { companyId, name, description, managerId });
 		return res
 			.status(201)
 			.json(successResponse(serializeDepartment(row), "Department created"));
@@ -66,7 +66,7 @@ export async function updateDept(req, res) {
 	try {
 		const companyId = req.user?.company_id;
 		const { id } = req.params;
-		const { name } = req.body;
+		const { name, description, managerId } = req.body;
 		if (!companyId) {
 			return res.status(400).json(errorResponse("Company context required"));
 		}
@@ -75,7 +75,7 @@ export async function updateDept(req, res) {
 		const existing = await findDepartmentByIdForCompany(req.db, id, companyId);
 		if (!existing) return res.status(404).json(errorResponse("Department not found"));
 
-		const updated = await updateDepartment(req.db, id, name);
+		const updated = await updateDepartment(req.db, id, { name, description, managerId });
 		return res.json(
 			successResponse(serializeDepartment(updated), "Department updated"),
 		);

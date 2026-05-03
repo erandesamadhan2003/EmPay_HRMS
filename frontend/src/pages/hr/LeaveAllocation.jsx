@@ -80,12 +80,15 @@ const LeaveCell = ({ used, total }) => {
 export default function LeaveAllocation() {
   const { data: empData, isLoading: empLoading } = useEmployees();
   const { data: allocData, isLoading: allocLoading } = useTimeOffAllocations();
-  const { createAllocation, isCreating } = useTimeOffAllocationMutations();
+  const { createAllocation, updateAllocation, isCreating, isUpdating } = useTimeOffAllocationMutations();
 
   const [modalMode, setModalMode] = useState(null); // 'add', 'edit'
   const [formData, setFormData] = useState({ employeeId: '', annualLeave: 12, sickLeave: 8, personalLeave: 4, emergencyLeave: 2 });
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [bulkAnnual, setBulkAnnual] = useState(12);
+  const [bulkAllModal, setBulkAllModal] = useState(false);
+  const [bulkAllForm, setBulkAllForm] = useState({ annualLeave: 12, sickLeave: 8, personalLeave: 4, emergencyLeave: 2 });
+  const [bulkAllProgress, setBulkAllProgress] = useState(null);
 
   const rawEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
   const employees = (Array.isArray(rawEmps) ? rawEmps : []).map(e => ({
@@ -100,7 +103,10 @@ export default function LeaveAllocation() {
 
   const allocations = employees.map(emp => {
     const empAllocs = apiAllocations.filter(a => a.userId === emp.id || a.employee?.id === emp.id);
-    const getLeave = (type) => empAllocs.find(a => (a.leaveType || a.type || '').toLowerCase().includes(type.toLowerCase()));
+    const getLeave = (type) => empAllocs.find(a => {
+      const lt = (a.leaveType || a.type || '').toLowerCase().replace(/[_ ]+/g, '');
+      return lt.includes(type.toLowerCase().replace(/[_ ]+/g, ''));
+    });
     
     const ann = getLeave('annual');
     const sck = getLeave('sick');
@@ -109,13 +115,17 @@ export default function LeaveAllocation() {
 
     return {
       employeeId: emp.id,
-      annualLeave: ann?.totalDays ?? 0,
+      annId: ann?.id,
+      annualLeave: ann?.allocatedDays ?? ann?.totalDays ?? 0,
       usedAnnual: ann?.usedDays ?? 0,
-      sickLeave: sck?.totalDays ?? 0,
+      sckId: sck?.id,
+      sickLeave: sck?.allocatedDays ?? sck?.totalDays ?? 0,
       usedSick: sck?.usedDays ?? 0,
-      personalLeave: prs?.totalDays ?? 0,
+      prsId: prs?.id,
+      personalLeave: prs?.allocatedDays ?? prs?.totalDays ?? 0,
       usedPersonal: prs?.usedDays ?? 0,
-      emergencyLeave: emg?.totalDays ?? 0,
+      emgId: emg?.id,
+      emergencyLeave: emg?.allocatedDays ?? emg?.totalDays ?? 0,
       usedEmergency: emg?.usedDays ?? 0,
     };
   });
@@ -138,10 +148,23 @@ export default function LeaveAllocation() {
   const handleSaveModal = async () => {
     if (!formData.employeeId) return;
     try {
-      const p1 = createAllocation({ userId: formData.employeeId, leaveType: 'Annual Leave', totalDays: formData.annualLeave });
-      const p2 = createAllocation({ userId: formData.employeeId, leaveType: 'Sick Leave', totalDays: formData.sickLeave });
-      const p3 = createAllocation({ userId: formData.employeeId, leaveType: 'Personal Leave', totalDays: formData.personalLeave });
-      const p4 = createAllocation({ userId: formData.employeeId, leaveType: 'Emergency Leave', totalDays: formData.emergencyLeave });
+      const vs = new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+      const ve = new Date(new Date().getFullYear(), 11, 31).toISOString().slice(0, 10);
+      const empAllocs = allocations.find(a => a.employeeId === Number(formData.employeeId));
+
+      const doSave = (leaveType, days, existingId) => {
+        if (existingId) {
+          return updateAllocation({ id: existingId, data: { allocatedDays: days } });
+        } else {
+          return createAllocation({ userId: formData.employeeId, leaveType, allocatedDays: days, validityStart: vs, validityEnd: ve });
+        }
+      };
+
+      const p1 = doSave('annual_leave', formData.annualLeave, empAllocs?.annId);
+      const p2 = doSave('sick_leave', formData.sickLeave, empAllocs?.sckId);
+      const p3 = doSave('personal_leave', formData.personalLeave, empAllocs?.prsId);
+      const p4 = doSave('emergency_leave', formData.emergencyLeave, empAllocs?.emgId);
+      
       await Promise.allSettled([p1, p2, p3, p4]);
       setModalMode(null);
     } catch(e) {
@@ -151,9 +174,16 @@ export default function LeaveAllocation() {
 
   const handleBulkApply = async () => {
     try {
-      const promises = employees.map(emp => 
-        createAllocation({ userId: emp.id, leaveType: 'Annual Leave', totalDays: bulkAnnual })
-      );
+      const vs = new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+      const ve = new Date(new Date().getFullYear(), 11, 31).toISOString().slice(0, 10);
+      const promises = employees.map(emp => {
+        const empAllocs = allocations.find(a => a.employeeId === emp.id);
+        if (empAllocs?.annId) {
+          return updateAllocation({ id: empAllocs.annId, data: { allocatedDays: bulkAnnual } });
+        } else {
+          return createAllocation({ userId: emp.id, leaveType: 'annual_leave', allocatedDays: bulkAnnual, validityStart: vs, validityEnd: ve });
+        }
+      });
       await Promise.allSettled(promises);
       setBulkConfirm(false);
     } catch (e) {
@@ -161,17 +191,43 @@ export default function LeaveAllocation() {
     }
   };
 
-  const chartData = allocations.map(a => {
-    const emp = employees.find(e => e.id === a.employeeId);
-    if (!emp) return null;
-    return {
-      name: emp.name.split(' ')[0],
-      Annual: a.annualLeave - a.usedAnnual,
-      Sick: a.sickLeave - a.usedSick,
-      Personal: a.personalLeave - a.usedPersonal,
-      Emergency: a.emergencyLeave - a.usedEmergency,
-    };
-  }).filter(Boolean);
+  const handleBulkAllApply = async () => {
+    const vs = new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10);
+    const ve = new Date(new Date().getFullYear(), 11, 31).toISOString().slice(0, 10);
+    setBulkAllProgress(0);
+    const total = employees.length;
+    for (let i = 0; i < employees.length; i++) {
+      const emp = employees[i];
+      const ea = allocations.find(a => a.employeeId === emp.id);
+      const doSave = (lt, days, eid) => eid
+        ? updateAllocation({ id: eid, data: { allocatedDays: days } })
+        : createAllocation({ userId: emp.id, leaveType: lt, allocatedDays: days, validityStart: vs, validityEnd: ve });
+      await Promise.allSettled([
+        doSave('annual_leave',   bulkAllForm.annualLeave,   ea?.annId),
+        doSave('sick_leave',     bulkAllForm.sickLeave,     ea?.sckId),
+        doSave('personal_leave', bulkAllForm.personalLeave, ea?.prsId),
+        doSave('emergency_leave',bulkAllForm.emergencyLeave,ea?.emgId),
+      ]);
+      setBulkAllProgress(Math.round(((i + 1) / total) * 100));
+    }
+    setBulkAllModal(false);
+    setBulkAllProgress(null);
+  };
+
+  // Chart: show allocated vs used for first 20 employees with any allocation
+  const chartData = allocations
+    .filter(a => a.annualLeave > 0 || a.sickLeave > 0)
+    .slice(0, 20)
+    .map(a => {
+      const emp = employees.find(e => e.id === a.employeeId);
+      if (!emp) return null;
+      return {
+        name: emp.name.split(' ')[0],
+        Allocated: a.annualLeave + a.sickLeave + a.personalLeave + a.emergencyLeave,
+        Used: a.usedAnnual + a.usedSick + a.usedPersonal + a.usedEmergency,
+        Remaining: (a.annualLeave - a.usedAnnual) + (a.sickLeave - a.usedSick) + (a.personalLeave - a.usedPersonal) + (a.emergencyLeave - a.usedEmergency),
+      };
+    }).filter(Boolean);
 
   const selectedEmpInfo = employees.find(e => e.id === Number(formData.employeeId));
 
@@ -220,20 +276,27 @@ export default function LeaveAllocation() {
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: '600' }}>Leave Allocation</h1>
             <div style={{ fontSize: '14px', color: C.muted, marginTop: '4px' }}>Manage leave balances for all employees</div>
           </div>
-          <button onClick={() => {
-            setFormData({ employeeId: '', annualLeave: 12, sickLeave: 8, personalLeave: 4, emergencyLeave: 2 });
-            setModalMode('add');
-          }} style={{ 
-            padding: '10px 20px', background: C.primary, color: '#fff', border: 'none', borderRadius: '8px', 
-            cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px',
-            boxShadow: `0 4px 12px ${C.primary}40`, transition: 'all 0.2s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = `0 4px 16px ${C.primary}80`}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = `0 4px 12px ${C.primary}40`}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            Allocate Leaves
-          </button>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button onClick={() => setBulkAllModal(true)} style={{
+              padding: '10px 20px', background: C.secondary, color: '#fff', border: 'none', borderRadius: '8px',
+              cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px',
+              boxShadow: `0 4px 12px ${C.secondary}40`, transition: 'all 0.2s'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Allocate All Employees
+            </button>
+            <button onClick={() => {
+              setFormData({ employeeId: '', annualLeave: 12, sickLeave: 8, personalLeave: 4, emergencyLeave: 2 });
+              setModalMode('add');
+            }} style={{
+              padding: '10px 20px', background: C.primary, color: '#fff', border: 'none', borderRadius: '8px',
+              cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px',
+              boxShadow: `0 4px 12px ${C.primary}40`, transition: 'all 0.2s'
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Allocate Employee
+            </button>
+          </div>
         </div>
 
         {/* SUMMARY CARDS */}
@@ -330,31 +393,35 @@ export default function LeaveAllocation() {
         </div>
 
         {/* LEAVE BALANCE OVERVIEW CHART */}
-        {chartData.length > 0 && (
-          <div style={{ background: C.surface, borderRadius: '12px', padding: '24px', border: `1px solid ${C.border}` }}>
-            <h2 style={{ fontSize: '18px', fontWeight: '600', color: C.text, margin: '0 0 24px 0' }}>Leave Balance Overview</h2>
+        <div style={{ background: C.surface, borderRadius: '12px', padding: '24px', border: `1px solid ${C.border}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: '600', color: C.text, margin: 0 }}>Leave Balance Overview</h2>
+            <div style={{ fontSize: '12px', color: C.muted }}>Top {Math.min(20, chartData.length)} employees</div>
+          </div>
+          {chartData.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: C.muted }}>No allocation data to display. Allocate leaves to employees first.</div>
+          ) : (
             <div style={{ width: '100%', overflowX: 'auto' }} className="hide-scroll">
-              <div style={{ minWidth: '800px', height: '360px' }}>
+              <div style={{ minWidth: `${Math.max(600, chartData.length * 60)}px`, height: '360px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.border} vertical={false} />
-                    <XAxis dataKey="name" stroke={C.muted} fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                    <XAxis dataKey="name" stroke={C.muted} fontSize={11} tickLine={false} axisLine={false} dy={10} interval={0} />
                     <YAxis stroke={C.muted} fontSize={12} tickLine={false} axisLine={false} />
-                    <RechartsTooltip 
-                      cursor={{ fill: C.surfaceHover }}
+                    <RechartsTooltip
+                      cursor={{ fill: `${C.primary}15` }}
                       contentStyle={{ backgroundColor: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.text, fontSize: '13px' }}
                     />
                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    <Bar dataKey="Annual" fill={C.primary} radius={[4, 4, 0, 0]} maxBarSize={40} />
-                    <Bar dataKey="Sick" fill={C.secondary} radius={[4, 4, 0, 0]} maxBarSize={40} />
-                    <Bar dataKey="Personal" fill={C.info} radius={[4, 4, 0, 0]} maxBarSize={40} />
-                    <Bar dataKey="Emergency" fill={C.warning} radius={[4, 4, 0, 0]} maxBarSize={40} />
+                    <Bar dataKey="Allocated" fill={C.primary} radius={[4, 4, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="Used" fill={C.danger} radius={[4, 4, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="Remaining" fill={C.success} radius={[4, 4, 0, 0]} maxBarSize={32} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* BULK ALLOCATE PANEL */}
         <div style={{ background: C.surface, borderRadius: '12px', padding: '24px', border: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '24px' }}>
@@ -427,8 +494,53 @@ export default function LeaveAllocation() {
               <button onClick={() => setModalMode(null)} style={{ flex: 1, padding: '12px', background: 'transparent', border: `1px solid ${C.border}`, color: C.text, borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>
                 Cancel
               </button>
-              <button onClick={handleSaveModal} disabled={!formData.employeeId || isCreating} style={{ flex: 1, padding: '12px', background: C.primary, border: 'none', color: '#fff', borderRadius: '8px', cursor: formData.employeeId ? 'pointer' : 'not-allowed', fontWeight: '500', opacity: formData.employeeId && !isCreating ? 1 : 0.5, boxShadow: formData.employeeId ? `0 4px 12px ${C.primary}40` : 'none' }}>
-                {isCreating ? 'Saving...' : (modalMode === 'add' ? 'Allocate' : 'Save Changes')}
+              <button onClick={handleSaveModal} disabled={!formData.employeeId || isCreating || isUpdating} style={{ flex: 1, padding: '12px', background: C.primary, border: 'none', color: '#fff', borderRadius: '8px', cursor: formData.employeeId ? 'pointer' : 'not-allowed', fontWeight: '500', opacity: formData.employeeId && !isCreating && !isUpdating ? 1 : 0.5, boxShadow: formData.employeeId ? `0 4px 12px ${C.primary}40` : 'none' }}>
+                {isCreating || isUpdating ? 'Saving...' : (modalMode === 'add' ? 'Allocate' : 'Save Changes')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK ALL EMPLOYEES MODAL */}
+      {bulkAllModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div onClick={() => !bulkAllProgress && setBulkAllModal(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }} />
+          <div className="animate-modal hide-scroll" style={{ position: 'relative', width: '100%', maxWidth: '480px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '28px', margin: '16px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: C.text }}>Allocate All Employees</h2>
+              <button onClick={() => setBulkAllModal(false)} style={{ background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <p style={{ fontSize: '13px', color: C.muted, margin: '0 0 24px 0' }}>Set leave balances for all <strong style={{ color: C.text }}>{employees.length}</strong> employees at once. Existing allocations will be updated.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              {[['annualLeave','Annual Leave',C.primary],['sickLeave','Sick Leave',C.secondary],['personalLeave','Personal Leave',C.info],['emergencyLeave','Emergency Leave',C.warning]].map(([field, label, color]) => (
+                <div key={field} style={{ background: C.bg, borderRadius: '10px', padding: '16px', border: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: '11px', color, fontWeight: '600', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
+                  <input type="number" min="0" style={{ ...InputBase, fontSize: '18px', fontWeight: '600', padding: '8px 12px', color }} value={bulkAllForm[field]} onChange={e => setBulkAllForm(f => ({ ...f, [field]: Number(e.target.value) }))} />
+                  <div style={{ fontSize: '11px', color: C.muted, marginTop: '6px' }}>days / year</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '14px 16px', background: `${C.secondary}10`, border: `1px solid ${C.secondary}30`, borderRadius: '10px', marginBottom: '24px' }}>
+              <div style={{ color: C.secondary, fontWeight: '600', fontSize: '14px' }}>Total per employee: {Object.values(bulkAllForm).reduce((s, v) => s + Number(v), 0)} days</div>
+              <div style={{ fontSize: '12px', color: C.muted, marginTop: '4px' }}>Will apply to {employees.length} employees · Validity: Jan 1 – Dec 31, {new Date().getFullYear()}</div>
+            </div>
+            {bulkAllProgress !== null && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: C.muted, marginBottom: '6px' }}>
+                  <span>Processing employees...</span><span>{bulkAllProgress}%</span>
+                </div>
+                <div style={{ height: '6px', background: C.surfaceHover, borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${bulkAllProgress}%`, background: C.secondary, borderRadius: '3px', transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setBulkAllModal(false)} disabled={bulkAllProgress !== null} style={{ flex: 1, padding: '12px', background: 'transparent', border: `1px solid ${C.border}`, color: C.text, borderRadius: '8px', cursor: 'pointer', fontWeight: '500' }}>Cancel</button>
+              <button onClick={handleBulkAllApply} disabled={bulkAllProgress !== null} style={{ flex: 1, padding: '12px', background: C.secondary, border: 'none', color: '#fff', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', opacity: bulkAllProgress !== null ? 0.6 : 1, boxShadow: `0 4px 12px ${C.secondary}40` }}>
+                {bulkAllProgress !== null ? `Applying... ${bulkAllProgress}%` : `Apply to All ${employees.length} Employees`}
               </button>
             </div>
           </div>

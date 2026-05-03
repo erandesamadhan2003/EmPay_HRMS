@@ -160,7 +160,7 @@ export async function updateUserSelfFields(db, userId, data) {
 
 /** HR/admin user table patches (whitelist). `role` only if caller validated as admin beforehand. */
 export async function updateUserStaffFields(db, userId, data) {
-	const allowed = ["name", "phone", "avatar_url", "role", "email"];
+	const allowed = ["name", "phone", "avatar_url", "role", "email", "is_active"];
 	const patch = {};
 	for (const k of allowed) {
 		if (data[k] !== undefined) patch[k] = data[k];

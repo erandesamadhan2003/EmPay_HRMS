@@ -25,15 +25,16 @@ const C = {
 };
 
 export default function AttendanceMonitor() {
-  const { data: empData, isLoading: empLoading } = useEmployees();
-  const { data: attData, isLoading: attLoading } = useAllAttendance();
-  const { data: deptData } = useDepartments();
-
   const [deptFilter, setDeptFilter] = useState('All');
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+  const formattedMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+  const { data: empData, isLoading: empLoading } = useEmployees();
+  const { data: attData, isLoading: attLoading } = useAllAttendance({ month: formattedMonth });
+  const { data: deptData } = useDepartments();
 
   const rawApiEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
   const apiEmps = Array.isArray(rawApiEmps) ? rawApiEmps : [];

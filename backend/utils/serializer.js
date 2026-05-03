@@ -8,6 +8,10 @@ export function serializeDepartment(row) {
 		id: row.id,
 		companyId: row.company_id,
 		name: row.name,
+		description: row.description || null,
+		managerId: row.manager_id || null,
+		headName: row.head_name || null,
+		employeeCount: Number(row.employee_count || 0),
 		createdAt: row.created_at,
 	};
 }
