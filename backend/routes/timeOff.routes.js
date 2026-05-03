@@ -23,12 +23,12 @@ router.get("/allocations/me", authRequired, getMyAllocationsController);
 router.put("/allocations/:id", authRequired, requireRoles("admin", "hr_officer"), updateAllocationController);
 router.delete("/allocations/:id", authRequired, requireRoles("admin"), deleteAllocationController);
 
-router.get("/requests", authRequired, requireRoles("admin", "payroll_officer"), listRequestsController);
+router.get("/requests", authRequired, requireRoles("admin", "hr_officer"), listRequestsController);
 router.post("/requests", authRequired, createRequestController);
 router.get("/requests/me", authRequired, myRequestsController);
 router.get("/requests/:id", authRequired, getRequestByIdController);
-router.put("/requests/:id/approve", authRequired, requireRoles("admin", "payroll_officer"), approveRequestController);
-router.put("/requests/:id/reject", authRequired, requireRoles("admin", "payroll_officer"), rejectRequestController);
+router.put("/requests/:id/approve", authRequired, requireRoles("admin", "hr_officer"), approveRequestController);
+router.put("/requests/:id/reject", authRequired, requireRoles("admin", "hr_officer"), rejectRequestController);
 router.put("/requests/:id/cancel", authRequired, cancelRequestController);
 
 export default router;

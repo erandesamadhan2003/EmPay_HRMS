@@ -51,16 +51,16 @@ export default function LeaveManagementView(){
   const rawEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
   const empList = (Array.isArray(rawEmps) ? rawEmps : []).map(e => ({ id: e.id, name: e.name || 'Unknown' }));
 
-  // Allocations from API
+  // Allocations from API — backend DTO uses `allocatedDays` and `usedDays`
   const rawAllocs = allocData?.data?.items ?? allocData?.data ?? allocData ?? [];
   const allocations = (Array.isArray(rawAllocs) ? rawAllocs : []).map(a => ({
     id: a.id,
     employeeName: a.employee?.name || a.userName || 'Employee',
     employeeId: a.userId || a.employee?.id || '',
     leaveType: a.leaveType || a.type || '—',
-    totalDays: a.totalDays || a.days || 0,
+    totalDays: a.allocatedDays ?? a.totalDays ?? a.days ?? 0,
     usedDays: a.usedDays || 0,
-    remaining: (a.totalDays || a.days || 0) - (a.usedDays || 0),
+    remaining: (a.allocatedDays ?? a.totalDays ?? a.days ?? 0) - (a.usedDays || 0),
   }));
 
   // Group allocations by employee for the table
@@ -102,9 +102,22 @@ export default function LeaveManagementView(){
   const handleAllocate = async () => {
     setAllocMsg(''); setAllocErr('');
     if (!allocEmpId) return setAllocErr('Please select an employee.');
-    if (!allocDays || Number(allocDays) <= 0) return setAllocErr('Please enter valid days.');
+    const days = Number(allocDays);
+    if (!allocDays || isNaN(days) || days <= 0) return setAllocErr('Please enter a valid number of days (> 0).');
+    if (days > 365) return setAllocErr('Cannot allocate more than 365 days at once.');
+    // Auto-generate validity for the current calendar year
+    const now = new Date();
+    const validityStart = `${now.getFullYear()}-01-01`;
+    const validityEnd   = `${now.getFullYear()}-12-31`;
     try {
-      await createAllocation({ userId: allocEmpId, leaveType: allocType, totalDays: Number(allocDays) });
+      await createAllocation({
+        userId: allocEmpId,
+        leaveType: allocType,
+        allocatedDays: days,   // backend field name
+        totalDays: days,       // kept for safety
+        validityStart,
+        validityEnd,
+      });
       setAllocMsg('Leave allocated successfully!');
       setAllocEmpId(''); setAllocDays('');
       setTimeout(() => setAllocMsg(''), 3000);
@@ -205,7 +218,7 @@ export default function LeaveManagementView(){
               </select>
             </div>
             <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Days</label>
-              <input type="number" value={allocDays} onChange={e=>setAllocDays(e.target.value)} placeholder="0" style={{background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'9px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',width:80}}/>
+              <input type="number" value={allocDays} onChange={e=>setAllocDays(e.target.value)} placeholder="0" min="1" max="365" step="1" style={{background:C.surfaceHover,border:`1px solid ${C.border}`,borderRadius:10,padding:'9px 14px',color:C.text,fontSize:13,fontFamily:'Poppins,sans-serif',outline:'none',width:80}}/>
             </div>
             <button className="lm-btn" onClick={handleAllocate} disabled={isAllocating} style={{background:C.teal,color:'#fff',padding:'10px 20px',fontSize:13,opacity:isAllocating?0.6:1}}>{isAllocating?'Allocating...':'Allocate'}</button>
           </div>

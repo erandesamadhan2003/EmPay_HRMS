@@ -25,6 +25,8 @@ import HREmployees from "../pages/hr/EmployeeManagement";
 import HRAttendance from "../pages/hr/AttendanceMonitor";
 import HRLeaveAllocation from "../pages/hr/LeaveAllocation";
 import HRLeaveRequests from "../pages/hr/LeaveRequests";
+import HRApplyLeave from "../pages/hr/ApplyLeave";
+import HRMyLeaves from "../pages/hr/MyLeaves";
 import HRProfile from "../pages/hr/Profile";
 import HRAssistant from "../pages/hr/Assistant";
 
@@ -33,7 +35,8 @@ import PayrollDashboard from "../pages/payroll/Dashboard";
 import PayrollManagement from "../pages/payroll/PayrollManagement";
 import PayrollPayslips from "../pages/payroll/Payslips";
 import PayrollSalary from "../pages/payroll/SalaryManagement";
-import PayrollLeaves from "../pages/payroll/LeaveRequests";
+import PayrollApplyLeave from "../pages/payroll/ApplyLeave";
+import PayrollMyLeaves from "../pages/payroll/MyLeaves";
 import PayrollReports from "../pages/payroll/Reports";
 import PayrollProfile from "../pages/payroll/Profile";
 
@@ -315,6 +318,22 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: "/hr/apply-leave",
+    element: (
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
+        <HRApplyLeave />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/hr/my-leaves",
+    element: (
+      <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
+        <HRMyLeaves />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: "/hr/profile",
     element: (
       <ProtectedRoute allowedRoles={["hr", "hr_officer"]}>
@@ -365,10 +384,18 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/payroll/leaves",
+    path: "/payroll/apply-leave",
     element: (
       <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
-        <PayrollLeaves />
+        <PayrollApplyLeave />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/payroll/my-leaves",
+    element: (
+      <ProtectedRoute allowedRoles={["payroll", "payroll_officer"]}>
+        <PayrollMyLeaves />
       </ProtectedRoute>
     ),
   },

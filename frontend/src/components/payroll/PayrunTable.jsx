@@ -101,9 +101,9 @@ export default function PayrunTable({ onSelectPayrun }) {
                   <td style={{ ...td, fontWeight: 600 }}>
                     {new Date(p.periodStart || p.period_start).toLocaleString('en-IN', { month: 'short', year: 'numeric' })}
                   </td>
-                  <td style={td}>{fmt(p.totalGross || p.total_gross)}</td>
-                  <td style={{ ...td, color: C.danger }}>-{fmt(p.totalDeductions || p.total_deductions)}</td>
-                  <td style={{ ...td, color: C.teal, fontWeight: 600 }}>{fmt(p.totalNet || p.total_net)}</td>
+                  <td style={td}>{fmt(p.totalCost || p.total_cost)}</td>
+                  <td style={{ ...td, color: C.danger }}>-{fmt(0)}</td>
+                  <td style={{ ...td, color: C.teal, fontWeight: 600 }}>{fmt(p.totalCost || p.total_cost)}</td>
                   <td style={td}>
                     <span style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: `${sc}18`, color: sc, textTransform: 'capitalize' }}>
                       {p.status}

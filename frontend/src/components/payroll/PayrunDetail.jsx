@@ -48,6 +48,18 @@ export default function PayrunDetail({ payrun, onBack }) {
   const rawPayslips = payslipsData?.data?.items ?? payslipsData?.data ?? payslipsData ?? [];
   const payslips = Array.isArray(rawPayslips) ? rawPayslips : [];
 
+  // Normalise each payslip so the template always has consistent camelCase fields
+  const normPayslips = payslips.map(p => ({
+    ...p,
+    // name resolution: list DTO uses employeeName, detail DTO uses user.name
+    _name:       p.employeeName  || p.employee_name  || p.user?.name  || 'Unknown',
+    _code:       p.employeeCode  || p.employee_code  || p.user?.loginId || p.user?.login_id || '—',
+    _gross:      p.grossSalary   || p.gross_salary   || p.gross   || 0,
+    _net:        p.netSalary     || p.net_salary     || p.net     || 0,
+    _deductions: p.totalDeductions || p.total_deductions || 0,
+    _payDays:    p.payableDays   || p.payable_days   || 0,
+  }));
+
   const handleDownload = async (slip) => {
     try {
       if (loadPayslipPdfBlob) {
@@ -81,11 +93,11 @@ export default function PayrunDetail({ payrun, onBack }) {
         </div>
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 20px' }}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 500, textTransform: 'uppercase', marginBottom: 6 }}>Total Net Payout</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.teal }}>{fmt(payrun.totalNet || payrun.total_net)}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.teal }}>{fmt(payrun.totalCost || payrun.total_cost || payrun.totalNet || payrun.total_net)}</div>
         </div>
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 20px' }}>
           <div style={{ fontSize: 11, color: C.muted, fontWeight: 500, textTransform: 'uppercase', marginBottom: 6 }}>Total Employees</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.cyan }}>{payslips.length}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.cyan }}>{payrun.employeeCount || payrun.employee_count || normPayslips.length}</div>
         </div>
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           {payrun.status === 'draft' && (
@@ -127,24 +139,24 @@ export default function PayrunDetail({ payrun, onBack }) {
             </tr>
           </thead>
           <tbody>
-            {payslips.length === 0 && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', padding: 40, color: C.muted }}>No payslips found.</td></tr>}
-            {payslips.map((slip, i) => (
+            {normPayslips.length === 0 && <tr><td colSpan={6} style={{ ...td, textAlign: 'center', padding: 40, color: C.muted }}>No payslips found.</td></tr>}
+            {normPayslips.map((slip, i) => (
               <tr key={slip.id} style={{ background: i % 2 ? C.surfaceHover : 'transparent', transition: 'background .15s' }}>
                 <td style={{ ...td, fontWeight: 500 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ width: 32, height: 32, borderRadius: '50%', background: `${C.teal}22`, color: C.teal, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
-                      {slip.user?.name?.[0] || 'E'}
+                      {slip._name?.[0] || 'E'}
                     </div>
                     <div>
-                      <div style={{ color: C.text }}>{slip.user?.name || 'Unknown'}</div>
-                      <div style={{ fontSize: 11, color: C.muted }}>{slip.user?.loginId || slip.user?.login_id || '—'}</div>
+                      <div style={{ color: C.text }}>{slip._name}</div>
+                      <div style={{ fontSize: 11, color: C.muted }}>{slip._code}</div>
                     </div>
                   </div>
                 </td>
-                <td style={td}>{slip.payableDays || slip.payable_days || 0}</td>
-                <td style={td}>{fmt(slip.grossSalary || slip.gross_salary || slip.gross)}</td>
-                <td style={{ ...td, color: C.danger }}>-{fmt(slip.totalDeductions || slip.total_deductions)}</td>
-                <td style={{ ...td, color: C.teal, fontWeight: 600 }}>{fmt(slip.netSalary || slip.net_salary || slip.net)}</td>
+                <td style={td}>{slip._payDays}</td>
+                <td style={td}>{fmt(slip._gross)}</td>
+                <td style={{ ...td, color: C.danger }}>-{fmt(slip._deductions)}</td>
+                <td style={{ ...td, color: C.teal, fontWeight: 600 }}>{fmt(slip._net)}</td>
                 <td style={td}>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button className="pd-abtn" title="View Details" onClick={() => setModal(slip)} style={{ color: C.cyan }}><EyeIco /></button>
@@ -172,10 +184,10 @@ export default function PayrunDetail({ payrun, onBack }) {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20, fontSize: 12 }}>
-              <div><span style={{ color: C.muted }}>Employee: </span><span style={{ color: C.text, fontWeight: 500 }}>{modal.user?.name}</span></div>
-              <div><span style={{ color: C.muted }}>Employee ID: </span><span style={{ color: C.text, fontWeight: 500 }}>{modal.user?.loginId || modal.user?.login_id}</span></div>
+              <div><span style={{ color: C.muted }}>Employee: </span><span style={{ color: C.text, fontWeight: 500 }}>{modal._name}</span></div>
+              <div><span style={{ color: C.muted }}>Employee ID: </span><span style={{ color: C.text, fontWeight: 500 }}>{modal._code}</span></div>
               <div><span style={{ color: C.muted }}>Pay Period: </span><span style={{ color: C.text, fontWeight: 500 }}>{periodLabel}</span></div>
-              <div><span style={{ color: C.muted }}>Payable Days: </span><span style={{ color: C.text, fontWeight: 500 }}>{modal.payableDays || modal.payable_days}</span></div>
+              <div><span style={{ color: C.muted }}>Payable Days: </span><span style={{ color: C.text, fontWeight: 500 }}>{modal._payDays}</span></div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
@@ -192,7 +204,7 @@ export default function PayrunDetail({ payrun, onBack }) {
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 13, fontWeight: 600 }}>
-                  <span style={{ color: C.text }}>Gross Total</span><span style={{ color: C.teal }}>{fmt(modal.grossSalary || modal.gross_salary || modal.gross)}</span>
+                  <span style={{ color: C.text }}>Gross Total</span><span style={{ color: C.teal }}>{fmt(modal._gross)}</span>
                 </div>
               </div>
               
@@ -209,15 +221,15 @@ export default function PayrunDetail({ payrun, onBack }) {
                   </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 13, fontWeight: 600 }}>
-                  <span style={{ color: C.text }}>Total Deductions</span><span style={{ color: C.danger }}>-{fmt(modal.totalDeductions || modal.total_deductions)}</span>
+                  <span style={{ color: C.text }}>Total Deductions</span><span style={{ color: C.danger }}>-{fmt(modal._deductions)}</span>
                 </div>
               </div>
             </div>
 
             <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12, padding: '16px 20px', textAlign: 'center', marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: C.muted, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 4 }}>Net Pay</div>
-              <div style={{ fontSize: 32, fontWeight: 700, color: C.teal }}>{fmt(modal.netSalary || modal.net_salary || modal.net)}</div>
-              <div style={{ fontSize: 11, color: C.muted, fontStyle: 'italic', marginTop: 4 }}>In Words: {numWords(Math.max(0, modal.netSalary || modal.net_salary || modal.net || 0))}</div>
+              <div style={{ fontSize: 32, fontWeight: 700, color: C.teal }}>{fmt(modal._net)}</div>
+              <div style={{ fontSize: 11, color: C.muted, fontStyle: 'italic', marginTop: 4 }}>In Words: {numWords(Math.max(0, modal._net || 0))}</div>
             </div>
 
             <div className="po-noprint" style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>

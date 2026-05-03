@@ -126,15 +126,20 @@ export default function EmployeeManagementView() {
 
   const handleSave = async () => {
     setSaveError(''); setSaveSuccess('');
-    // Validate required fields
+    // Basic validation
     if (!form.name.trim()) return setSaveError('Full name is required.');
-    if (!form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email)) return setSaveError('A valid email is required.');
+    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+      return setSaveError('A valid email address is required.');
+    if (form.phone && form.phone.trim() && !/^[0-9]{10}$/.test(form.phone.replace(/\s/g, '')))
+      return setSaveError('Phone must be a 10-digit number (e.g. 9876543210).');
+    if (form.salary && (isNaN(Number(form.salary)) || Number(form.salary) < 0))
+      return setSaveError('Salary must be a positive number.');
     try {
       const payload = {
         name: form.name.trim(),
         email: form.email.trim(),
-        phone: form.phone || undefined,
-        departmentId: form.departmentId || undefined,   // Real UUID from API
+        phone: form.phone ? form.phone.replace(/\s/g, '') : undefined,
+        departmentId: form.departmentId || undefined,
         role: form.role || 'employee',
         dateOfJoining: form.joinDate || undefined,
         designation: form.role || 'Employee',
@@ -327,13 +332,13 @@ export default function EmployeeManagementView() {
             </div>
             {form.name && <div style={{fontSize:12,color:C.muted,marginBottom:16,background:C.surfaceHover,padding:'8px 14px',borderRadius:8}}>Login ID Preview: <span style={{color:C.teal,fontFamily:'monospace',fontWeight:600}}>{genLoginId()}</span></div>}
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
-              <div style={{gridColumn:'span 2'}}><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Full Name</label><input style={modalField} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Full Name"/></div>
-              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Email</label><input style={modalField} value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@empay.io"/></div>
-              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Phone</label><div style={{display:'flex',gap:6}}><span style={{...modalField,width:50,textAlign:'center',flexShrink:0,padding:'10px 6px'}}>+91</span><input style={modalField} value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="9876543210"/></div></div>
+              <div style={{gridColumn:'span 2'}}><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Full Name <span style={{color:C.danger}}>*</span></label><input style={modalField} type="text" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Samadhan Patil" maxLength={80} required/></div>
+              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Email <span style={{color:C.danger}}>*</span></label><input style={modalField} type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="name@company.com" maxLength={120} required/></div>
+              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Phone</label><div style={{display:'flex',gap:6}}><span style={{...modalField,width:50,textAlign:'center',flexShrink:0,padding:'10px 6px'}}>+91</span><input style={modalField} type="tel" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value.replace(/\D/g,'').slice(0,10)}))} placeholder="9876543210" maxLength={10} pattern="[0-9]{10}"/></div></div>
               <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Department</label><select style={{...modalField,cursor:'pointer'}} value={form.departmentId} onChange={e=>{const obj=cleanDepts.find(d=>d.id===e.target.value)||{};setForm(f=>({...f,departmentId:e.target.value,department:obj.name||''}));}}>{cleanDepts.length>0?cleanDepts.map(d=><option key={d.id} value={d.id} style={{background:C.surface}}>{d.name}</option>):<option value="">No departments loaded</option>}</select></div>
               <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Role</label><select style={{...modalField,cursor:'pointer'}} value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}><option style={{background:C.surface}} value="employee">Employee</option><option style={{background:C.surface}} value="admin">Admin</option><option style={{background:C.surface}} value="hr">HR Officer</option><option style={{background:C.surface}} value="payroll">Payroll Officer</option></select></div>
-              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Date of Joining</label><input type="date" style={{...modalField,colorScheme:'dark'}} value={form.joinDate} onChange={e=>setForm(f=>({...f,joinDate:e.target.value}))}/></div>
-              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Salary</label><input type="number" style={modalField} value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} placeholder="Monthly salary"/></div>
+              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Date of Joining</label><input type="date" style={{...modalField,colorScheme:'dark'}} value={form.joinDate} max={new Date().toISOString().slice(0,10)} onChange={e=>setForm(f=>({...f,joinDate:e.target.value}))}/></div>
+              <div><label style={{fontSize:11,color:C.muted,display:'block',marginBottom:4}}>Salary (₹/month)</label><input type="number" style={modalField} value={form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} placeholder="Monthly salary" min="0" step="100"/></div>
             </div>
             {saveError && <div style={{marginTop:16,padding:'10px 14px',borderRadius:10,background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.25)',fontSize:12,color:'#EF4444',fontWeight:500}}>{saveError}</div>}
             {saveSuccess && <div style={{marginTop:16,padding:'10px 14px',borderRadius:10,background:'rgba(20,184,166,0.1)',border:'1px solid rgba(20,184,166,0.25)',fontSize:12,color:C.teal,fontWeight:500}}>✓ {saveSuccess}</div>}
