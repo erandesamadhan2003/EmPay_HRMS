@@ -45,9 +45,9 @@ export default function ApplyLeaveView() {
 
   // Get selected allocation details
   const selectedAlloc = allocs.find(a => a.id === form.allocationId);
-  const totalDays = selectedAlloc ? Number(selectedAlloc.total_days ?? selectedAlloc.totalDays ?? 0) : 0;
-  const usedDays = selectedAlloc ? Number(selectedAlloc.used_days ?? selectedAlloc.usedDays ?? 0) : 0;
-  const remainingDays = Math.max(0, totalDays - usedDays);
+  const totalDays = selectedAlloc ? Number(selectedAlloc.allocatedDays ?? selectedAlloc.total_days ?? selectedAlloc.totalDays ?? 0) : 0;
+  const usedDays = selectedAlloc ? Number(selectedAlloc.usedDays ?? selectedAlloc.used_days ?? 0) : 0;
+  const remainingDays = selectedAlloc ? Number(selectedAlloc.availableDays ?? Math.max(0, totalDays - usedDays)) : 0;
 
   // Calculate days for current selection
   const requestedDays = useMemo(() => {
@@ -127,9 +127,9 @@ export default function ApplyLeaveView() {
           <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginRight: 'auto' }}>Your Balance:</div>
           {allocs.map((a, i) => {
             const type = (a.leave_type || a.leaveType || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            const total = Number(a.total_days ?? a.totalDays ?? 0);
-            const used = Number(a.used_days ?? a.usedDays ?? 0);
-            const bal = Math.max(0, total - used);
+            const total = Number(a.allocatedDays ?? a.total_days ?? a.totalDays ?? 0);
+            const used = Number(a.usedDays ?? a.used_days ?? 0);
+            const bal = Number(a.availableDays ?? Math.max(0, total - used));
             return (
               <div key={i} style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 20, fontWeight: 700, color: C.teal }}>{bal}</div>
@@ -173,10 +173,10 @@ export default function ApplyLeaveView() {
               >
                 <option value="" style={{ background: C.surface }}>Choose a leave allocation</option>
                 {allocs.map(a => {
-                  const type = (a.leave_type || a.leaveType || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                  const total = Number(a.total_days ?? a.totalDays ?? 0);
-                  const used = Number(a.used_days ?? a.usedDays ?? 0);
-                  const remaining = Math.max(0, total - used);
+                  const type = (a.leaveType || a.leave_type || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                  const total = Number(a.allocatedDays ?? a.total_days ?? a.totalDays ?? 0);
+                  const used = Number(a.usedDays ?? a.used_days ?? 0);
+                  const remaining = Number(a.availableDays ?? Math.max(0, total - used));
                   return (
                     <option key={a.id} value={a.id} style={{ background: C.surface }}>
                       {type} — {remaining} day{remaining !== 1 ? 's' : ''} remaining

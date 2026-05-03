@@ -13,6 +13,7 @@ import {
 	aggregateUserAttendanceMonth,
 	countOrgAttendanceDay,
 	listOrgAttendanceDay,
+	listOrgAttendanceMonth,
 	weekdaysInMonthRange,
 } from "../models/Attendance.js";
 import { paginationMeta, parseListQuery } from "../utils/pagination.js";
@@ -244,6 +245,19 @@ export async function listOrgAttendance(req, res) {
 		const companyId = req.user?.company_id;
 		if (!companyId) {
 			return res.status(400).json(errorResponse("Company context required"));
+		}
+
+		if (req.query.month) {
+			const rows = await listOrgAttendanceMonth(req.db, companyId, req.query.month);
+			return res.json(
+				successResponse(
+					{
+						month: req.query.month,
+						items: rows.map(serializeAttendance).map((a, i) => ({ ...a, userId: rows[i].user_id })),
+					},
+					"Attendance fetched",
+				),
+			);
 		}
 
 		const dateStr = req.query.date || (await pgToday(req));

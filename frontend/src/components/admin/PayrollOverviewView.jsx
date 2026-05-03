@@ -27,24 +27,9 @@ const Styles = () => <style dangerouslySetInnerHTML={{
 `}} />;
 
 export default function PayrollOverviewView() {
-  const { data: empData, isLoading, error, refetch } = useEmployees();
-  const { createPayrun, isCreating: isCreatingPayrun } = usePayrunMutations();
-  const { loadPayslipPdfBlob } = usePayslipMutations();
-
-  const rawEmps = empData?.data?.items ?? empData?.data ?? empData ?? [];
-  const EMPS = (Array.isArray(rawEmps) ? rawEmps : []).map(e => {
-    const basic = e.salary?.basic || e.basicSalary || 0;
-    const hra = Math.round(basic * 0.4);
-    const allowances = Math.round(basic * 0.25);
-    const pf = Math.round(basic * 0.12);
-    const pt = 200;
-    return {
-      id: e.id, name: e.name || 'Unknown', department: e.profile?.department?.name || '\u2014',
-      basicSalary: basic, hra, allowances, pfDeduction: pf, professionalTax: pt,
-      status: e.payrollStatus || 'Pending',
-      netSalary: basic + hra + allowances - pf - pt,
-    };
-  });
+  // Fetch payruns and payslips
+  const { data: payrunsData, isLoading: isLoadingPayruns, error: errorPayruns } = usePayruns();
+  const payruns = payrunsData?.data?.items ?? payrunsData?.data ?? [];
 
   // Dynamic months — last 5 months
   const now = new Date();
@@ -54,9 +39,33 @@ export default function PayrollOverviewView() {
   });
   const currentMonth = now.toLocaleString('en-IN', { month: 'long', year: 'numeric' });
 
+  // Parse month string (e.g. "April 2026") into YYYY-MM
   const [month, setMonth] = useState(currentMonth);
   const [modal, setModal] = useState(null);
   const [payrun, setPayrun] = useState(false);
+  const { createPayrun, isCreating: isCreatingPayrun } = usePayrunMutations();
+  const { loadPayslipPdfBlob } = usePayslipMutations();
+
+  const targetDate = new Date(Date.parse(month + " 1"));
+  const targetPrefix = month ? `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}` : '';
+
+  const currentPayrun = payruns.find(p => p.periodStart?.startsWith(targetPrefix));
+
+  const { data: payslipsData, isLoading: isLoadingPayslips, error: errorPayslips, refetch } = usePayslips({ payrun_id: currentPayrun?.id, limit: 1000 });
+  const rawPayslips = payslipsData?.data?.items ?? payslipsData?.data ?? [];
+
+  const EMPS = rawPayslips.map(p => ({
+    id: p.id,
+    name: p.employeeName || 'Unknown',
+    department: p.department || '\u2014',
+    basicSalary: p.basicSalary || 0,
+    hra: p.hra || 0,
+    allowances: p.standardAllowance || 0,
+    pfDeduction: p.pfEmployee || 0,
+    professionalTax: p.professionalTax || 0,
+    status: p.status || 'Pending',
+    netSalary: p.netSalary || 0,
+  }));
 
   const totGross = EMPS.reduce((a, e) => a + e.basicSalary + e.hra + e.allowances, 0);
   const totDed = EMPS.reduce((a, e) => a + e.pfDeduction + e.professionalTax, 0);
@@ -92,8 +101,8 @@ export default function PayrollOverviewView() {
     URL.revokeObjectURL(url);
   };
 
-  if (isLoading) return <LoadingSpinner message="Loading payroll..." />;
-  if (error) return <ErrorState message="Failed to load payroll data" onRetry={refetch} />;
+  if (isLoadingPayruns || isLoadingPayslips) return <LoadingSpinner message="Loading payroll..." />;
+  if (errorPayruns || errorPayslips) return <ErrorState message="Failed to load payroll data" onRetry={refetch} />;
 
   const th = { padding: '10px 12px', fontSize: 11, fontWeight: 600, color: C.muted, textTransform: 'uppercase', letterSpacing: '.04em', borderBottom: `1px solid ${C.border}`, textAlign: 'left', whiteSpace: 'nowrap', fontFamily: 'Poppins,sans-serif' };
   const td = { padding: '10px 12px', fontSize: 13, color: C.text, borderBottom: `1px solid ${C.border}`, fontFamily: 'Poppins,sans-serif', whiteSpace: 'nowrap' };

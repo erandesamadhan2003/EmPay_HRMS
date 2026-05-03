@@ -180,6 +180,16 @@ export async function listOrgAttendanceDay(db, companyId, dateStr, page, limit, 
 	return rows;
 }
 
+export async function listOrgAttendanceMonth(db, companyId, monthStr) {
+	const { startStr, endStr } = monthBounds(monthStr);
+	const { rows } = await db.query(
+		`SELECT * FROM attendance
+		 WHERE company_id = $1 AND date >= $2 AND date <= $3`,
+		[companyId, startStr, endStr],
+	);
+	return rows;
+}
+
 export async function countUserAttendanceEntriesMonth(db, userId, monthStr) {
 	const { startStr, endStr } = monthBounds(monthStr);
 	const { rows } = await db.query(

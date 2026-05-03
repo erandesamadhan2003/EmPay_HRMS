@@ -264,9 +264,9 @@ export default function EmployeeManagementView() {
                     <td style={td}><span style={{fontSize:10,fontWeight:600,padding:'3px 10px',borderRadius:20,background:e.status==='Active'?C.tealLight:'rgba(239,68,68,.15)',color:e.status==='Active'?C.teal:C.danger}}>{e.status}</span></td>
                     <td style={{...td,textAlign:'center'}}>
                       <div style={{display:'flex',gap:4,justifyContent:'center'}}>
-                        <button className="em-abtn" title="View" onClick={()=>openView(e)} onMouseEnter={ev=>ev.currentTarget.style.background=`${C.cyan}18`} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><EyeIco color={C.cyan}/></button>
-                        <button className="em-abtn" title="Edit" onClick={()=>openEdit(e)} onMouseEnter={ev=>ev.currentTarget.style.background=C.accentLight} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><PenIco color={C.accent}/></button>
-                        <button className="em-abtn" title="Delete" onClick={()=>openDelete(e)} onMouseEnter={ev=>ev.currentTarget.style.background='rgba(239,68,68,.12)'} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><TrashIco color={C.danger}/></button>
+                        <button className="em-abtn" title="View" onClick={(ev)=>{ev.stopPropagation(); openView(e);}} onMouseEnter={ev=>ev.currentTarget.style.background=`${C.cyan}18`} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><EyeIco color={C.cyan}/></button>
+                        <button className="em-abtn" title="Edit" onClick={(ev)=>{ev.stopPropagation(); openEdit(e);}} onMouseEnter={ev=>ev.currentTarget.style.background=C.accentLight} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><PenIco color={C.accent}/></button>
+                        <button className="em-abtn" title="Delete" onClick={(ev)=>{ev.stopPropagation(); openDelete(e);}} onMouseEnter={ev=>ev.currentTarget.style.background='rgba(239,68,68,.12)'} onMouseLeave={ev=>ev.currentTarget.style.background='transparent'}><TrashIco color={C.danger}/></button>
                       </div>
                     </td>
                   </tr>
@@ -297,9 +297,9 @@ export default function EmployeeManagementView() {
                   <span style={{fontSize:11,color:C.muted}}>{e.role}</span>
                 </div>
                 <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
-                  <button className="em-abtn" onClick={()=>openView(e)} style={{background:`${C.cyan}18`}}><EyeIco color={C.cyan}/></button>
-                  <button className="em-abtn" onClick={()=>openEdit(e)} style={{background:C.accentLight}}><PenIco color={C.accent}/></button>
-                  <button className="em-abtn" onClick={()=>openDelete(e)} style={{background:'rgba(239,68,68,.12)'}}><TrashIco color={C.danger}/></button>
+                  <button className="em-abtn" onClick={(ev)=>{ev.stopPropagation(); openView(e);}} style={{background:`${C.cyan}18`}}><EyeIco color={C.cyan}/></button>
+                  <button className="em-abtn" onClick={(ev)=>{ev.stopPropagation(); openEdit(e);}} style={{background:C.accentLight}}><PenIco color={C.accent}/></button>
+                  <button className="em-abtn" onClick={(ev)=>{ev.stopPropagation(); openDelete(e);}} style={{background:'rgba(239,68,68,.12)'}}><TrashIco color={C.danger}/></button>
                 </div>
               </div>
             );

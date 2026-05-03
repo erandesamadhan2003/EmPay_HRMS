@@ -117,7 +117,7 @@ export default function ReportsView(){
     ];
   }, [leaves]);
 
-  const totalAllocDays = allocs.reduce((a, al) => a + (al.totalDays || al.days || 0), 0);
+  const totalAllocDays = allocs.reduce((a, al) => a + (al.allocatedDays || al.totalDays || al.days || 0), 0);
   const totalUsedDays = allocs.reduce((a, al) => a + (al.usedDays || 0), 0);
 
   // ─── PAYROLL TAB DATA ────

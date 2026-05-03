@@ -476,7 +476,7 @@ export async function activateCompany(req, res) {
 export async function listCompanies(req, res) {
 	try {
 		const { page, limit } = parseListQuery(req.query);
-		const { search } = req.query;
+		const { search, status, sort } = req.query;
 		const offset = (page - 1) * limit;
 
 		let where = "WHERE 1=1";
@@ -487,14 +487,29 @@ export async function listCompanies(req, res) {
 			where += ` AND (c.name ILIKE $${params.length})`;
 		}
 
+		if (status && status !== 'all') {
+			if (status === 'active') {
+				where += ` AND EXISTS(SELECT 1 FROM users u WHERE u.company_id = c.id AND u.role = 'admin' AND u.is_active = TRUE)`;
+			} else if (status === 'suspended') {
+				where += ` AND EXISTS(SELECT 1 FROM users u WHERE u.company_id = c.id AND u.role = 'admin' AND u.is_active = FALSE)`;
+			}
+		}
+
+		let orderBy = 'c.created_at DESC';
+		if (sort) {
+			if (sort === 'Name A-Z') orderBy = 'c.name ASC';
+			else if (sort === 'Most Employees') orderBy = 'employee_count DESC';
+		}
+
 		const { rows } = await req.db.query(`
 			SELECT c.*, 
 				(SELECT COUNT(*) FROM users WHERE company_id = c.id) as employee_count,
 				(SELECT name FROM users WHERE company_id = c.id AND role = 'admin' LIMIT 1) as admin_name,
-				(SELECT email FROM users WHERE company_id = c.id AND role = 'admin' LIMIT 1) as admin_email
+				(SELECT email FROM users WHERE company_id = c.id AND role = 'admin' LIMIT 1) as admin_email,
+				(SELECT is_active FROM users WHERE company_id = c.id AND role = 'admin' LIMIT 1) as admin_is_active
 			FROM companies c
 			${where}
-			ORDER BY c.created_at DESC
+			ORDER BY ${orderBy}
 			LIMIT $${params.length + 1} OFFSET $${params.length + 2}
 		`, [...params, limit, offset]);
 
@@ -508,7 +523,7 @@ export async function listCompanies(req, res) {
 			adminName: r.admin_name || 'N/A',
 			adminEmail: r.admin_email || 'N/A',
 			employeeCount: parseInt(r.employee_count),
-			status: 'active',
+			status: r.admin_is_active ? 'active' : 'suspended',
 			approvedOn: r.created_at,
 			industry: 'Technology',
 			city: 'Mumbai',

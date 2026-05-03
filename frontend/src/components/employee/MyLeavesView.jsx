@@ -76,10 +76,10 @@ export default function MyLeavesView() {
       {/* ALLOCATION CARDS */}
       <div className="lv-alloc" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
         {allocs.length > 0 ? allocs.map((a, i) => {
-          const type = a.leave_type || a.leaveType || 'paid_time_off';
-          const total = Number(a.total_days ?? a.totalDays ?? a.days ?? 0);
-          const used = Number(a.used_days ?? a.usedDays ?? 0);
-          const remaining = Math.max(0, total - used);
+          const type = a.leaveType || a.leave_type || 'paid_time_off';
+          const total = Number(a.allocatedDays ?? a.total_days ?? a.totalDays ?? a.days ?? 0);
+          const used = Number(a.usedDays ?? a.used_days ?? 0);
+          const remaining = Number(a.availableDays ?? Math.max(0, total - used));
           const pct = total > 0 ? (Math.min(used, total) / total) * 100 : 0;
           const color = LEAVE_COLORS[type] || C.accent;
           return (

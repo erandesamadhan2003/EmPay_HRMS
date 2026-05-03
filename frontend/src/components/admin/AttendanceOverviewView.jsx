@@ -28,13 +28,15 @@ const Styles=()=><style dangerouslySetInnerHTML={{__html:`
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 export default function AttendanceOverviewView(){
-  const { data: empData, isLoading, error, refetch } = useEmployees();
-  const { data: attData } = useAllAttendance();
-  const { data: deptData } = useDepartments();
-
   const now=new Date();
   const [year,setYear]=useState(now.getFullYear());
   const [month,setMonth]=useState(now.getMonth());
+  const formattedMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
+  
+  const { data: empData, isLoading, error, refetch } = useEmployees();
+  const { data: attData } = useAllAttendance({ month: formattedMonth });
+  const { data: deptData } = useDepartments();
+
   const [deptF,setDeptF]=useState('All');
   const [hover,setHover]=useState(null);
   const [modal,setModal]=useState(null);
