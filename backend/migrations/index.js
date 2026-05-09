@@ -9,6 +9,7 @@ import { up as typesCompatUp } from './007_types_compat.js';
 import { up as attendanceUp } from './008_attendance.js';
 import { up as phase2CoreUp } from './009_phase2_core.js';
 import { up as companyOfficeGeofenceUp } from './010_company_office_geofence.js';
+import { up as departmentsColumnsUp } from './011_departments_columns.js';
 
 const migrations = [
     typesUp,
@@ -21,6 +22,7 @@ const migrations = [
     attendanceUp,
     phase2CoreUp,
     companyOfficeGeofenceUp,
+    departmentsColumnsUp,
 ];
 
 export async function run() {

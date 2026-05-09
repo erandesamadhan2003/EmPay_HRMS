@@ -66,6 +66,9 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/audit-logs', auditLogsRoutes);
 app.use('/api/agent', agentRoutes);
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date() });
+});
 
 const PORT = process.env.PORT || 3000;
 
