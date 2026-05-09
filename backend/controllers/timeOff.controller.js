@@ -311,8 +311,12 @@ export async function cancelRequestController(req, res) {
 	try {
 		const row = await findRequestById(req.db, req.params.id, req.user.company_id);
 		if (!row) return res.status(404).json(errorResponse("Request not found"));
-		if (String(row.user_id) !== String(req.user.id)) {
-			return res.status(403).json(errorResponse("Forbidden"));
+
+		const isSelf = String(row.user_id) === String(req.user.id);
+		const isPrivileged = ["admin", "hr_officer"].includes(req.user.role);
+
+		if (!isSelf && !isPrivileged) {
+			return res.status(403).json(errorResponse("You can only cancel your own requests"));
 		}
 		if (row.status !== "pending") {
 			return res.status(422).json(errorResponse("Only pending requests can be cancelled"));
