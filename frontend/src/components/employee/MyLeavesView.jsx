@@ -18,9 +18,12 @@ const STATUS_STYLES = {
 };
 
 const LEAVE_COLORS = {
-  paid_time_off: C.teal,
-  sick_leave: C.danger,
-  unpaid_leave: C.warning,
+  paid_time_off:   C.teal,
+  sick_leave:      C.danger,
+  unpaid_leave:    C.warning,
+  annual_leave:    C.teal,
+  personal_leave:  C.cyan,
+  emergency_leave: C.accent,
 };
 
 const Styles = () => (
@@ -54,7 +57,14 @@ export default function MyLeavesView() {
 
   const handleCancel = async (id) => {
     if (!window.confirm('Cancel this leave request?')) return;
-    try { await cancelRequest(id); refetch(); } catch (e) { console.error(e); }
+    try {
+      await cancelRequest(id);
+      refetch();
+    } catch (e) {
+      const msg = e?.response?.data?.message || 'Failed to cancel request';
+      alert(`Error: ${msg}`);
+      console.error(e);
+    }
   };
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -100,19 +110,7 @@ export default function MyLeavesView() {
             </div>
           );
         }) : (
-          [
-            { type: 'Paid Time Off', total: 12, used: 0, color: C.teal },
-            { type: 'Sick Leave', total: 6, used: 0, color: C.danger },
-            { type: 'Unpaid Leave', total: 0, used: 0, color: C.warning },
-          ].map((a, i) => (
-            <div key={i} className="lv-card" style={{ background: C.surface, borderRadius: 16, border: `1px solid ${C.border}`, padding: 24, animationDelay: `${i * 80}ms` }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 16 }}>{a.type}</div>
-              <div style={{ fontSize: 32, fontWeight: 700, color: a.color, marginBottom: 4 }}>{a.total - a.used}</div>
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>of {a.total} days remaining</div>
-              <div style={{ height: 6, borderRadius: 3, background: C.surfaceHover }} />
-              <div style={{ fontSize: 10, color: C.muted, marginTop: 8 }}>No allocations assigned yet</div>
-            </div>
-          ))
+          <div style={{ padding: 32, textAlign: 'center', color: C.muted, fontSize: 13 }}>No leave allocations assigned. Contact HR to allocate your leaves.</div>
         )}
       </div>
 
@@ -149,7 +147,7 @@ export default function MyLeavesView() {
                         <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500, color: LEAVE_COLORS[type] || C.text }}>{formatType(type)}</td>
                         <td style={{ padding: '12px 16px', fontSize: 13, color: C.text }}>{formatDate(from)}</td>
                         <td style={{ padding: '12px 16px', fontSize: 13, color: C.text }}>{formatDate(to)}</td>
-                        <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: C.text }}>{days}</td>
+                        <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: C.text }}>{req.daysRequested ?? req.days_requested ?? req.days ?? '—'}</td>
                         <td style={{ padding: '12px 16px' }}>
                           <span style={{ fontSize: 10, fontWeight: 600, padding: '4px 10px', borderRadius: 10, background: statusStyle.bg, color: statusStyle.color, textTransform: 'uppercase' }}>{status}</span>
                         </td>

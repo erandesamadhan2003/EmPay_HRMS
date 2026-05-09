@@ -1,0 +1,84 @@
+services:
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+
+    ports:
+      - "80:80"
+
+    env_file:
+      - ./frontend/.env
+
+    depends_on:
+      - backend
+
+    restart: always
+
+
+
+  backend:
+    build: ./backend
+    container_name: backend
+
+    ports:
+      - "3000:3000"
+
+    env_file:
+      - ./backend/.env
+
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+
+    depends_on:
+      - database
+
+    restart: always
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+
+  database:
+    image: postgres:16
+    container_name: postgres_db
+
+    restart: always
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  
+  redis:
+    image: redis:7-alpine
+    container_name: redis_server
+
+    restart: always 
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+
+
+volumes:
+  postgres_data:
+  redis_data:
