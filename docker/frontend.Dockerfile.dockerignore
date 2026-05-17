@@ -1,0 +1,9 @@
+**
+!frontend/**
+!nginx/nginx.conf
+
+frontend/node_modules
+frontend/.env
+frontend/.git
+
+

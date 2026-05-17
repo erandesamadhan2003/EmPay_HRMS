@@ -11,23 +11,24 @@ const C = {
 };
 
 const STATUS_STYLES = {
-  pending:  { bg: `${C.warning}22`, color: C.warning },
+  pending: { bg: `${C.warning}22`, color: C.warning },
   approved: { bg: `${C.teal}22`, color: C.teal },
   rejected: { bg: `${C.danger}22`, color: C.danger },
   cancelled: { bg: `${C.muted}22`, color: C.muted },
 };
 
 const LEAVE_COLORS = {
-  paid_time_off:   C.teal,
-  sick_leave:      C.danger,
-  unpaid_leave:    C.warning,
-  annual_leave:    C.teal,
-  personal_leave:  C.cyan,
+  paid_time_off: C.teal,
+  sick_leave: C.danger,
+  unpaid_leave: C.warning,
+  annual_leave: C.teal,
+  personal_leave: C.cyan,
   emergency_leave: C.accent,
 };
 
 const Styles = () => (
-  <style dangerouslySetInnerHTML={{ __html: `
+  <style dangerouslySetInnerHTML={{
+    __html: `
     @keyframes lvFadeUp { from { opacity:0; transform:translateY(18px) } to { opacity:1; transform:translateY(0) } }
     .lv-card { animation: lvFadeUp .4s ease-out both; transition: transform .25s, box-shadow .25s; }
     .lv-card:hover { transform: translateY(-3px); }
