@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts';
-import { useFetch } from '../../hooks/useFetch';
 
 const C = {
   bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24',
@@ -11,9 +10,9 @@ const C = {
 
 export const GrowthChart = ({ apiData, loading: externalLoading, error: externalError, refetch: externalRefetch }) => {
   const [tab, setTab] = useState('Companies');
-  
+
   const loading = externalLoading;
-  
+
   // Provide fallback data if API is not ready or errors out
   const data = useMemo(() => {
     if (Array.isArray(apiData)) return apiData;
@@ -81,8 +80,8 @@ export const GrowthChart = ({ apiData, loading: externalLoading, error: external
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="colorCompanies" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={C.teal} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={C.teal} stopOpacity={0}/>
+                  <stop offset="5%" stopColor={C.teal} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={C.teal} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={C.border} strokeDasharray="3 3" vertical={false} />
@@ -92,14 +91,14 @@ export const GrowthChart = ({ apiData, loading: externalLoading, error: external
                 contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '8px', color: C.text }}
                 itemStyle={{ color: C.teal, fontWeight: 600 }}
               />
-              <Area 
-                type="monotone" 
-                dataKey="newCompanies" 
+              <Area
+                type="monotone"
+                dataKey="newCompanies"
                 name="New Companies"
-                stroke={C.teal} 
+                stroke={C.teal}
                 strokeWidth={2}
-                fillOpacity={1} 
-                fill="url(#colorCompanies)" 
+                fillOpacity={1}
+                fill="url(#colorCompanies)"
                 isAnimationActive={true}
                 dot={{ fill: C.teal, r: 4, strokeWidth: 0 }}
                 activeDot={{ r: 6, fill: C.teal, stroke: '#fff', strokeWidth: 2 }}
@@ -115,11 +114,11 @@ export const GrowthChart = ({ apiData, loading: externalLoading, error: external
                 itemStyle={{ color: C.violet, fontWeight: 600 }}
               />
               <ReferenceLine y={avgUsers} stroke={C.cyan} strokeDasharray="4 4" label={{ value: 'AVG', fill: C.cyan, fontSize: 10, position: 'insideTopLeft' }} />
-              <Line 
-                type="monotone" 
-                dataKey="activeUsers" 
+              <Line
+                type="monotone"
+                dataKey="activeUsers"
                 name="Active Users"
-                stroke={C.violet} 
+                stroke={C.violet}
                 strokeWidth={3}
                 isAnimationActive={true}
                 dot={{ fill: C.violet, r: 4, strokeWidth: 0 }}

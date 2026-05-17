@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useFetch } from '../../hooks/useFetch';
+import { useSuperadminPlatformActivity } from '../../hooks/superadmin';
 
 const C = {
   bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24',
@@ -22,7 +22,7 @@ const getDotColor = (action) => {
 
 export const ActivityLogTab = () => {
   const [limit, setLimit] = useState(10);
-  const { data: apiData, loading, refetch } = useFetch(`/superadmin/activity?limit=${limit}`, [limit]);
+  const { data: apiData, loading, refetch } = useSuperadminPlatformActivity(limit);
   const activities = apiData?.data || [];
 
   if (loading && limit === 10) {
@@ -46,18 +46,18 @@ export const ActivityLogTab = () => {
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ position: 'absolute', left: '6px', top: '8px', bottom: '8px', width: '2px', background: C.border }}></div>
-      
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
         {activities.map((act, i) => {
           const dotColor = getDotColor(act.action);
           return (
             <div key={act.id || i} style={{ position: 'relative', paddingLeft: '32px' }}>
-              <div style={{ 
-                position: 'absolute', left: '0', top: '4px', width: '14px', height: '14px', 
+              <div style={{
+                position: 'absolute', left: '0', top: '4px', width: '14px', height: '14px',
                 borderRadius: '50%', background: dotColor, border: `4px solid ${C.surface}`,
                 zIndex: 1
               }}></div>
-              
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: C.text }}>{act.action}</div>
@@ -77,7 +77,7 @@ export const ActivityLogTab = () => {
       </div>
 
       <div style={{ marginTop: '40px', textAlign: 'center' }}>
-        <button 
+        <button
           onClick={() => setLimit(prev => prev + 10)}
           disabled={loading}
           style={{ padding: '8px 24px', background: 'transparent', border: `1px solid ${C.border}`, color: C.muted, borderRadius: '20px', fontSize: '13px', fontWeight: 500, cursor: loading ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}

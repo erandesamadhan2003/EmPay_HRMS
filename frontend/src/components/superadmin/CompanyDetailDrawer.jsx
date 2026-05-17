@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useFetch } from '../../hooks/useFetch';
+import { useSuperadminCompanyDetail } from '../../hooks/superadmin';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 const C = {
@@ -24,7 +24,7 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
   const [suspendReason, setSuspendReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  const { data: apiData, loading: apiLoading, refetch } = useFetch(companyId ? `/superadmin/companies/${companyId}` : null, [companyId]);
+  const { data: apiData, loading: apiLoading, refetch } = useSuperadminCompanyDetail(companyId);
 
   useEffect(() => {
     if (!isOpen) {
@@ -89,7 +89,7 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
 
       {/* OVERLAY */}
       {isOpen && (
-        <div 
+        <div
           onClick={onClose}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, animation: 'sa-fade-in 0.2s ease' }}
         />
@@ -105,8 +105,8 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
       }}>
         {apiLoading && !data ? (
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-             <div style={{ height: '60px', borderRadius: '12px', animation: 'sa-shimmer 2s infinite linear', backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%' }} />
-             <div style={{ height: '200px', borderRadius: '12px', animation: 'sa-shimmer 2s infinite linear', backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%' }} />
+            <div style={{ height: '60px', borderRadius: '12px', animation: 'sa-shimmer 2s infinite linear', backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%' }} />
+            <div style={{ height: '200px', borderRadius: '12px', animation: 'sa-shimmer 2s infinite linear', backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%' }} />
           </div>
         ) : data ? (
           <>
@@ -115,7 +115,7 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
               <button onClick={onClose} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
-              
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: C.violetLight, color: C.violet, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 700 }}>
                   {getInitials(data.name)}
@@ -154,7 +154,7 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
 
             {/* TAB CONTENT */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-              
+
               {activeTab === 'Overview' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
                   {/* Info Grid */}
@@ -198,7 +198,7 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
                             Suspending this company will immediately revoke access for all its employees and admins.
                           </div>
                           {!suspendConfirm ? (
-                            <button 
+                            <button
                               onClick={() => setSuspendConfirm(true)}
                               style={{ padding: '8px 16px', background: 'transparent', border: `1px solid ${C.warning}`, color: C.warning, borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
                             >
@@ -206,19 +206,19 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
                             </button>
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', animation: 'sa-fade-in 0.2s' }}>
-                              <textarea 
+                              <textarea
                                 value={suspendReason} onChange={e => setSuspendReason(e.target.value)}
                                 placeholder="Reason for suspension (required)"
                                 style={{ width: '100%', height: '80px', padding: '12px', background: C.surface, border: `1px solid ${C.warning}`, borderRadius: '8px', color: C.text, outline: 'none', resize: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                               />
                               <div style={{ display: 'flex', gap: '12px' }}>
-                                <button 
+                                <button
                                   onClick={handleSuspend} disabled={!suspendReason.trim() || actionLoading}
                                   style={{ flex: 1, padding: '10px', background: C.warning, border: 'none', color: '#fff', borderRadius: '8px', fontWeight: 600, cursor: (!suspendReason.trim() || actionLoading) ? 'not-allowed' : 'pointer', opacity: (!suspendReason.trim() || actionLoading) ? 0.6 : 1 }}
                                 >
                                   {actionLoading ? 'Suspending...' : 'Confirm Suspend'}
                                 </button>
-                                <button 
+                                <button
                                   onClick={() => setSuspendConfirm(false)} disabled={actionLoading}
                                   style={{ padding: '10px 16px', background: 'transparent', border: 'none', color: C.muted, cursor: 'pointer' }}
                                 >Cancel</button>
@@ -231,7 +231,7 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
                           <div style={{ fontSize: '13px', color: C.text, marginBottom: '16px' }}>
                             This company is currently suspended. Activating will restore full platform access.
                           </div>
-                          <button 
+                          <button
                             onClick={handleActivate} disabled={actionLoading}
                             style={{ padding: '8px 16px', background: C.teal, border: 'none', color: '#fff', borderRadius: '8px', fontWeight: 600, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.6 : 1 }}
                           >
@@ -264,7 +264,7 @@ export const CompanyDetailDrawer = ({ companyId, isOpen, onClose, onSuspend, onA
                       <div style={{ fontSize: '24px', fontWeight: 700, color: C.warning }}>{data.stats?.leavesThisMonth || 0}</div>
                     </div>
                   </div>
-                  
+
                   <div style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: '12px', padding: '20px' }}>
                     <h3 style={{ fontSize: '14px', fontWeight: 600, color: C.text, margin: '0 0 16px 0' }}>Activity Trend</h3>
                     <div style={{ height: '160px' }}>

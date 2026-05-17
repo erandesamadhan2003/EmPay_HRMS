@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import MainLayout from '../../components/layouts/MainLayout';
-import { useFetch } from '../../hooks/useFetch';
-import { useMutation } from '../../hooks/useMutation';
+import { useSuperadminCompanies, useSuperadminCompaniesStats, useSuperadminCompanyMutations } from '../../hooks/superadmin';
+import { superadminService } from '../../services/superadmin.service';
 import { StatCard } from '../../components/superadmin/StatCard';
 import { CompanyTable } from '../../components/superadmin/CompanyTable';
 import { CompanyDetailDrawer } from '../../components/superadmin/CompanyDetailDrawer';
@@ -31,7 +31,7 @@ export default function CompaniesManagement() {
   const [sort, setSort] = useState('Newest First');
   const [page, setPage] = useState(1);
   const limit = 12;
-  
+
   // Chart toggle
   const [showChart, setShowChart] = useState(false);
 
@@ -62,11 +62,9 @@ export default function CompaniesManagement() {
   queryParams.append('limit', limit.toString());
 
   // APIs
-  const { data: statsData, loading: statsLoading } = useFetch('/superadmin/companies/stats');
-  const { data: companiesData, loading: compLoading, refetch: refetchCompanies } = useFetch(`/superadmin/companies?${queryParams.toString()}`);
-  const { mutate: suspendApi } = useMutation('PUT');
-  const { mutate: activateApi } = useMutation('PUT');
-  const { mutate: exportApi, loading: exportLoading } = useMutation('GET'); // If export uses GET, useFetch is better or handle custom fetch. For blob, custom fetch is usually needed.
+  const { data: statsData, loading: statsLoading } = useSuperadminCompaniesStats();
+  const { data: companiesData, loading: compLoading, refetch: refetchCompanies } = useSuperadminCompanies(queryParams);
+  const { suspendCompany, activateCompany } = useSuperadminCompanyMutations();
 
   const stats = statsData?.data || { total: 0, active: 0, suspended: 0, pending: 0, byIndustry: [] };
   const rawCompanies = companiesData?.data?.items || [];
@@ -76,20 +74,15 @@ export default function CompaniesManagement() {
   // Handlers
   const handleExport = async () => {
     try {
-      // Mocking export
-      const token = JSON.parse(localStorage.getItem('empay_auth') || '{}')?.token;
-      const res = await fetch(`${BASE_URL}/superadmin/companies/export`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
+      const res = await superadminService.exportCompanies(queryParams);
+      const blob = res.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `companies_export_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch(e) {
+    } catch (e) {
       console.error('Export error, using mock fallback', e);
       // Fallback
       setToast({ message: 'Export initiated (Mock). Check downloads.', type: 'success' });
@@ -99,11 +92,11 @@ export default function CompaniesManagement() {
 
   const handleSuspend = async (id, reason) => {
     try {
-      await suspendApi(`/superadmin/companies/${id}/suspend`, { reason });
+      await suspendCompany({ id, reason });
       setToast({ message: 'Company suspended successfully', type: 'success' });
       setTimeout(() => setToast(null), 3000);
       refetchCompanies();
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       setToast({ message: 'Failed to suspend company', type: 'error' });
       setTimeout(() => setToast(null), 3000);
@@ -112,11 +105,11 @@ export default function CompaniesManagement() {
 
   const handleActivate = async (id) => {
     try {
-      await activateApi(`/superadmin/companies/${id}/activate`, {});
+      await activateCompany(id);
       setToast({ message: 'Company activated successfully', type: 'success' });
       setTimeout(() => setToast(null), 3000);
       refetchCompanies();
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       setToast({ message: 'Failed to activate company', type: 'error' });
       setTimeout(() => setToast(null), 3000);
@@ -130,7 +123,8 @@ export default function CompaniesManagement() {
 
   return (
     <MainLayout role="superadmin" pageTitle="Companies">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes sa-fade-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes sa-toast-slide { from { opacity: 0; transform: translateY(100%); } to { opacity: 1; transform: translateY(0); } }
         @keyframes sa-collapse { from { max-height: 0; opacity: 0; } to { max-height: 400px; opacity: 1; } }
@@ -149,18 +143,18 @@ export default function CompaniesManagement() {
       )}
 
       <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', fontFamily: '"Poppins", sans-serif' }}>
-        
+
         {/* TOP BAR */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
           <div>
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 600, color: C.text }}>Companies</h1>
             <div style={{ fontSize: '14px', color: C.muted, marginTop: '4px' }}>Manage all registered companies on the platform</div>
           </div>
-          <button 
+          <button
             onClick={handleExport}
-            style={{ 
-              padding: '10px 16px', background: 'transparent', border: `1px solid ${C.teal}`, color: C.teal, 
-              borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' 
+            style={{
+              padding: '10px 16px', background: 'transparent', border: `1px solid ${C.teal}`, color: C.teal,
+              borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
             }}
             onMouseEnter={e => { e.currentTarget.style.background = C.tealLight; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
@@ -180,7 +174,7 @@ export default function CompaniesManagement() {
 
         {/* INDUSTRY CHART (Collapsible) */}
         <div className="sa-fade-up" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '12px', marginBottom: '24px', overflow: 'hidden' }}>
-          <div 
+          <div
             onClick={() => setShowChart(!showChart)}
             style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: showChart ? C.surfaceHover : 'transparent', transition: 'background 0.2s' }}
           >
@@ -189,7 +183,7 @@ export default function CompaniesManagement() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </div>
           </div>
-          
+
           {showChart && (
             <div style={{ padding: '20px', borderTop: `1px solid ${C.border}`, animation: 'sa-fade-up 0.3s' }}>
               <div style={{ height: '260px' }}>
@@ -211,23 +205,23 @@ export default function CompaniesManagement() {
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '12px 12px 0 0', padding: '20px', display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', borderBottom: 'none' }}>
           <div style={{ position: 'relative', flex: '1 1 250px' }}>
             <svg style={{ position: 'absolute', left: '12px', top: '10px', color: C.muted }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <input 
-              type="text" 
-              placeholder="Search company name or admin..." 
+            <input
+              type="text"
+              placeholder="Search company name or admin..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ ...InputBase, width: '100%', paddingLeft: '36px', boxSizing: 'border-box' }} 
+              style={{ ...InputBase, width: '100%', paddingLeft: '36px', boxSizing: 'border-box' }}
             />
           </div>
-          
-          <select value={status} onChange={e => {setStatus(e.target.value); setPage(1);}} style={InputBase}>
+
+          <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} style={InputBase}>
             <option value="All">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Suspended">Suspended</option>
             <option value="Pending">Pending</option>
           </select>
 
-          <select value={industry} onChange={e => {setIndustry(e.target.value); setPage(1);}} style={InputBase}>
+          <select value={industry} onChange={e => { setIndustry(e.target.value); setPage(1); }} style={InputBase}>
             <option value="All">All Industries</option>
             <option value="Technology">Technology</option>
             <option value="Healthcare">Healthcare</option>
@@ -238,14 +232,14 @@ export default function CompaniesManagement() {
             <option value="Other">Other</option>
           </select>
 
-          <select value={plan} onChange={e => {setPlan(e.target.value); setPage(1);}} style={InputBase}>
+          <select value={plan} onChange={e => { setPlan(e.target.value); setPage(1); }} style={InputBase}>
             <option value="All">All Plans</option>
             <option value="Free">Free</option>
             <option value="Pro">Pro</option>
             <option value="Enterprise">Enterprise</option>
           </select>
-          
-          <select value={sort} onChange={e => {setSort(e.target.value); setPage(1);}} style={InputBase}>
+
+          <select value={sort} onChange={e => { setSort(e.target.value); setPage(1); }} style={InputBase}>
             <option value="Newest First">Newest First</option>
             <option value="Name A-Z">Name A-Z</option>
             <option value="Most Employees">Most Employees</option>
@@ -254,10 +248,10 @@ export default function CompaniesManagement() {
 
         {/* TABLE */}
         <div style={{ borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
-          <CompanyTable 
-            companies={rawCompanies} 
-            loading={compLoading} 
-            onViewDetail={openDetail} 
+          <CompanyTable
+            companies={rawCompanies}
+            loading={compLoading}
+            onViewDetail={openDetail}
             onSuspend={(id) => handleSuspend(id, 'Quick suspend from table')}
             onActivate={handleActivate}
             sort={{ column: sort.includes('Name') ? 'name' : (sort.includes('Employees') ? 'employeeCount' : 'id'), direction: sort === 'Name A-Z' ? 'asc' : 'desc' }}
@@ -276,19 +270,19 @@ export default function CompaniesManagement() {
               Showing {(page - 1) * limit + 1}-{Math.min(page * limit, totalCompanies)} of {totalCompanies} companies
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 style={{ padding: '6px 12px', background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: '6px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
               >Prev</button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                <button 
-                  key={p} 
-                  onClick={() => setPage(p)} 
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
                   style={{ padding: '6px 12px', background: page === p ? C.teal : C.surface, border: `1px solid ${page === p ? C.teal : C.border}`, color: page === p ? '#fff' : C.text, borderRadius: '6px', cursor: 'pointer', fontWeight: page === p ? 600 : 400 }}
                 >{p}</button>
               ))}
-              <button 
+              <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 style={{ padding: '6px 12px', background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: '6px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}
@@ -299,10 +293,10 @@ export default function CompaniesManagement() {
 
       </div>
 
-      <CompanyDetailDrawer 
-        companyId={selectedCompanyId} 
-        isOpen={drawerOpen} 
-        onClose={() => setDrawerOpen(false)} 
+      <CompanyDetailDrawer
+        companyId={selectedCompanyId}
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
         onSuspend={handleSuspend}
         onActivate={handleActivate}
       />

@@ -10,6 +10,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - db_data:/var/lib/postgresql/data
+    networks:
+      - database_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 5s
@@ -24,6 +26,8 @@ services:
       - .env.prod
     volumes:
       - redis_data:/data
+    networks:
+      - redis_network
     healthcheck:
       test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 5s
@@ -45,6 +49,10 @@ services:
         redis:
           condition: service_healthy
     restart: unless-stopped
+    networks:
+      - backend_network
+      - database_network
+      - redis_network
 
 
   frontend:
@@ -58,7 +66,23 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - frontend_network
+      - backend_network
 
 volumes:
   db_data:
   redis_data:
+
+networks:
+  database_network:
+    driver: bridge
+    internal: true
+  redis_network:
+    driver: bridge
+    internal: true
+  backend_network:
+    driver: bridge
+    internal: true
+  frontend_network:
+    driver: bridge

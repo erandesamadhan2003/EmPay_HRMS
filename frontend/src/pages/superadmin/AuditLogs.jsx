@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import MainLayout from '../../components/layouts/MainLayout';
-import { useFetch } from '../../hooks/useFetch';
-import { BASE_URL } from '../../config/api';
+import { useSuperadminAuditLogStats, useSuperadminAuditLogs } from '../../hooks/superadmin';
+import { superadminService } from '../../services/superadmin.service';
 import { StatCard } from '../../components/superadmin/StatCard';
 import { AuditLogTable } from '../../components/superadmin/AuditLogTable';
 import { AuditFilterBar } from '../../components/superadmin/AuditFilterBar';
@@ -30,8 +30,8 @@ export default function AuditLogs() {
   const [lastUpdated, setLastUpdated] = useState(0);
 
   // API Call: Stats
-  const { data: statsData, loading: statsLoading } = useFetch('/superadmin/audit-logs/stats');
-  
+  const { data: statsData, loading: statsLoading } = useSuperadminAuditLogStats();
+
   // API Call: Logs
   const queryParams = new URLSearchParams();
   if (filters.action !== 'All') queryParams.append('action', filters.action);
@@ -43,7 +43,7 @@ export default function AuditLogs() {
   queryParams.append('page', page.toString());
   queryParams.append('limit', limit.toString());
 
-  const { data: logData, loading: logLoading, refetch: refetchLogs } = useFetch(`/superadmin/audit-logs?${queryParams.toString()}`);
+  const { data: logData, loading: logLoading, refetch: refetchLogs } = useSuperadminAuditLogs(queryParams);
 
   // Fallback Data
   const stats = statsData?.data || { totalToday: 0, criticalToday: 0, warningToday: 0, topActors: [] };
@@ -71,19 +71,15 @@ export default function AuditLogs() {
   // Handle Export
   const handleExport = async () => {
     try {
-      const token = JSON.parse(localStorage.getItem('empay_auth') || '{}')?.token;
-      const res = await fetch(`${BASE_URL}/superadmin/audit-logs/export?${queryParams.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
+      const res = await superadminService.exportAuditLogs(queryParams);
+      const blob = res.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `audit_logs_export_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch(e) {
+    } catch (e) {
       console.error(e);
       alert('Export failed. Make sure backend is running.');
     }
@@ -96,14 +92,15 @@ export default function AuditLogs() {
 
   return (
     <MainLayout role="superadmin" pageTitle="Audit Logs">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes sa-fade-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes sa-live-pulse { 0% { opacity: 0.4; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } 100% { opacity: 0.4; transform: scale(0.8); } }
         .sa-fade-up { animation: sa-fade-up 0.5s ease-out forwards; }
       `}} />
 
       <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', fontFamily: '"Poppins", sans-serif' }}>
-        
+
         {/* TOP BAR */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
           <div>
@@ -111,22 +108,22 @@ export default function AuditLogs() {
             <div style={{ fontSize: '14px', color: C.muted, marginTop: '4px' }}>Complete system activity trail for all companies and users</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: `${C.teal}10`, padding: '6px 12px', borderRadius: '20px', border: `1px solid ${C.teal}30` }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: C.teal, animation: 'sa-live-pulse 2s infinite' }} />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: C.teal, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Tracking</span>
-             </div>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ textAlign: 'right' }}>
-                   <div style={{ fontSize: '11px', color: C.muted }}>Last updated</div>
-                   <div style={{ fontSize: '12px', color: C.text, fontWeight: 500 }}>{lastUpdated}s ago</div>
-                </div>
-                <button 
-                  onClick={() => { refetchLogs(); setLastUpdated(0); }}
-                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                </button>
-             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: `${C.teal}10`, padding: '6px 12px', borderRadius: '20px', border: `1px solid ${C.teal}30` }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: C.teal, animation: 'sa-live-pulse 2s infinite' }} />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: C.teal, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Live Tracking</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '11px', color: C.muted }}>Last updated</div>
+                <div style={{ fontSize: '12px', color: C.text, fontWeight: 500 }}>{lastUpdated}s ago</div>
+              </div>
+              <button
+                onClick={() => { refetchLogs(); setLastUpdated(0); }}
+                style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.text, padding: '8px', borderRadius: '8px', cursor: 'pointer' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -141,11 +138,11 @@ export default function AuditLogs() {
         {/* FILTERS & TOP ACTORS */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', marginBottom: '24px' }}>
           {/* Filters */}
-          <AuditFilterBar 
-            filters={filters} 
-            onChange={handleFilterChange} 
+          <AuditFilterBar
+            filters={filters}
+            onChange={handleFilterChange}
             onExport={handleExport}
-            loading={logLoading} 
+            loading={logLoading}
           />
 
           {/* Top Actors */}
@@ -188,20 +185,20 @@ export default function AuditLogs() {
               Showing {(page - 1) * limit + 1}-{Math.min(page * limit, totalLogs)} of {totalLogs} logs
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
                 style={{ padding: '6px 12px', background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: '6px', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
               >Prev</button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map(p => (
-                <button 
-                  key={p} 
-                  onClick={() => setPage(p)} 
+                <button
+                  key={p}
+                  onClick={() => setPage(p)}
                   style={{ padding: '6px 12px', background: page === p ? C.teal : C.surface, border: `1px solid ${page === p ? C.teal : C.border}`, color: page === p ? '#fff' : C.text, borderRadius: '6px', cursor: 'pointer', fontWeight: page === p ? 600 : 400 }}
                 >{p}</button>
               ))}
               {totalPages > 5 && <span style={{ color: C.muted }}>...</span>}
-              <button 
+              <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
                 style={{ padding: '6px 12px', background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: '6px', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.5 : 1 }}

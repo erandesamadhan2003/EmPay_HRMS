@@ -1,7 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import MainLayout from '../../components/layouts/MainLayout';
-import { useFetch } from '../../hooks/useFetch';
-import { useMutation } from '../../hooks/useMutation';
+import {
+  useSuperadminDashboardStats,
+  useSuperadminDashboardGrowth,
+  useSuperadminDashboardHealth,
+  useSuperadminDashboardStatus,
+  useSuperadminPlatformActivity,
+  useSuperadminCompanyRequests,
+  useSuperadminCompanyRequestMutations,
+} from '../../hooks/superadmin';
 import { StatCard } from '../../components/superadmin/StatCard';
 import { GrowthChart } from '../../components/superadmin/GrowthChart';
 import { CompanyRequestCard } from '../../components/superadmin/CompanyRequestCard';
@@ -17,7 +24,8 @@ const C = {
 };
 
 const DashboardStyles = () => (
-  <style dangerouslySetInnerHTML={{ __html: `
+  <style dangerouslySetInnerHTML={{
+    __html: `
     @keyframes sa-fade-up {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
@@ -52,15 +60,14 @@ const DashboardStyles = () => (
 );
 
 export default function Dashboard() {
-  const { data: statsData, loading: statsLoading } = useFetch('/superadmin/dashboard/stats');
-  const { data: healthData, loading: healthLoading } = useFetch('/superadmin/analytics/health');
-  const { data: growthData, loading: growthLoading, error: growthError, refetch: refetchGrowth } = useFetch('/superadmin/analytics/growth');
-  const { data: reqsData, loading: reqsLoading, refetch: refetchReqs } = useFetch('/company-requests?status=pending&limit=4');
-  const { data: actData, loading: actLoading } = useFetch('/superadmin/activity?limit=6');
-  const { data: statusData, loading: statusLoading } = useFetch('/superadmin/analytics/by-status');
+  const { data: statsData, loading: statsLoading } = useSuperadminDashboardStats();
+  const { data: healthData, loading: healthLoading } = useSuperadminDashboardHealth();
+  const { data: growthData, loading: growthLoading, error: growthError, refetch: refetchGrowth } = useSuperadminDashboardGrowth();
+  const { data: reqsData, loading: reqsLoading, refetch: refetchReqs } = useSuperadminCompanyRequests({ status: 'pending', limit: 4 });
+  const { data: actData, loading: actLoading } = useSuperadminPlatformActivity(6);
+  const { data: statusData, loading: statusLoading } = useSuperadminDashboardStatus();
 
-  const { mutate: approveReq } = useMutation('POST');
-  const { mutate: rejectReq } = useMutation('POST');
+  const { reviewRequest } = useSuperadminCompanyRequestMutations();
 
   const [optimisticReqs, setOptimisticReqs] = useState(null);
 
@@ -70,22 +77,26 @@ export default function Dashboard() {
   const activities = actData?.data || [];
   const byStatus = statusData?.data || { active: 0, pending: 0, suspended: 0, rejected: 0 };
 
-  const handleApprove = async (id) => {
-    setOptimisticReqs(requests.filter(r => r.id !== id));
+  const handleApprove = async (request) => {
+    const requestId = request?.id;
+    if (!requestId) return;
+    setOptimisticReqs(requests.filter(r => r.id !== requestId));
     try {
-      await approveReq(`/company-requests/${id}/approve`, {});
+      await reviewRequest({ id: requestId, data: { action: 'approve' } });
       refetchReqs();
-    } catch(e) {
+    } catch (e) {
       setOptimisticReqs(null); // revert on error
     }
   };
 
-  const handleReject = async (id) => {
-    setOptimisticReqs(requests.filter(r => r.id !== id));
+  const handleReject = async (request) => {
+    const requestId = request?.id;
+    if (!requestId) return;
+    setOptimisticReqs(requests.filter(r => r.id !== requestId));
     try {
-      await rejectReq(`/company-requests/${id}/reject`, {});
+      await reviewRequest({ id: requestId, data: { action: 'reject' } });
       refetchReqs();
-    } catch(e) {
+    } catch (e) {
       setOptimisticReqs(null);
     }
   };
@@ -101,7 +112,7 @@ export default function Dashboard() {
     <MainLayout role="superadmin" pageTitle="Dashboard">
       <DashboardStyles />
       <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box', fontFamily: '"Poppins", sans-serif' }}>
-        
+
         {/* ROW 1: STATS */}
         <div className="sa-grid-4" style={{ marginBottom: '24px' }}>
           <div className="sa-stagger-1"><StatCard loading={statsLoading} title="Total Companies" value={stats.totalCompanies} subtitle={stats.trends?.companies} trendUp={stats.trendUp?.companies} color="violet" icon="building" /></div>
@@ -113,12 +124,12 @@ export default function Dashboard() {
         {/* ROW 2: GROWTH & HEALTH */}
         <div className="sa-grid-2-65 sa-fade-up sa-stagger-2" style={{ marginBottom: '24px' }}>
           <GrowthChart apiData={growthData} loading={growthLoading} error={growthError} refetch={refetchGrowth} />
-          
+
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ margin: '0 0 24px 0', fontSize: '16px', fontWeight: 600, color: C.text }}>Platform Health</h3>
-            
+
             {healthLoading ? (
-               <div style={{ flex: 1, animation: 'sa-shimmer 2s infinite linear', backgroundColor: C.surface, backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%', borderRadius: '12px' }}></div>
+              <div style={{ flex: 1, animation: 'sa-shimmer 2s infinite linear', backgroundColor: C.surface, backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%', borderRadius: '12px' }}></div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flex: 1 }}>
                 <div style={{ background: C.bg, borderRadius: '12px', padding: '16px', border: `1px solid ${C.border}` }}>
@@ -152,7 +163,7 @@ export default function Dashboard() {
               </div>
               <button style={{ background: 'transparent', border: 'none', color: C.teal, fontSize: '13px', fontWeight: 500, cursor: 'pointer' }}>View All →</button>
             </div>
-            
+
             {reqsLoading ? (
               <div style={{ height: '240px', animation: 'sa-shimmer 2s infinite linear', backgroundColor: C.surface, backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%', borderRadius: '12px' }}></div>
             ) : requests.length === 0 ? (
@@ -172,7 +183,7 @@ export default function Dashboard() {
 
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '24px' }}>
             <h3 style={{ margin: '0 0 24px 0', fontSize: '16px', fontWeight: 600, color: C.text }}>Recent Activity</h3>
-            
+
             {actLoading ? (
               <div style={{ height: '240px', animation: 'sa-shimmer 2s infinite linear', backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%', borderRadius: '12px' }}></div>
             ) : (
@@ -183,7 +194,7 @@ export default function Dashboard() {
                   if (act.type === 'rejected') dotColor = C.danger;
                   if (act.type === 'registered') dotColor = C.violet;
                   if (act.type === 'suspended') dotColor = C.warning;
-                  
+
                   return (
                     <div key={act.id || i} style={{ position: 'relative', marginBottom: i === activities.length - 1 ? 0 : '24px' }}>
                       <div style={{ position: 'absolute', left: '-29px', top: '4px', width: '12px', height: '12px', borderRadius: '50%', background: dotColor, border: `3px solid ${C.surface}` }}></div>
@@ -205,7 +216,7 @@ export default function Dashboard() {
         {/* ROW 4: BY STATUS */}
         <div className="sa-fade-up sa-stagger-4" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '24px' }}>
           <h3 style={{ margin: '0 0 24px 0', fontSize: '16px', fontWeight: 600, color: C.text }}>Companies by Status</h3>
-          
+
           {statusLoading ? (
             <div style={{ height: '240px', animation: 'sa-shimmer 2s infinite linear', backgroundImage: `linear-gradient(90deg, ${C.surface} 0%, ${C.surfaceHover} 50%, ${C.surface} 100%)`, backgroundSize: '200% 100%', borderRadius: '12px' }}></div>
           ) : (
@@ -229,7 +240,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-              
+
               <div style={{ height: '240px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={statusChartData} layout="vertical" margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>

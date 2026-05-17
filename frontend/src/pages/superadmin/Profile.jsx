@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../../components/layouts/MainLayout';
-import { useFetch } from '../../hooks/useFetch';
-import { useMutation } from '../../hooks/useMutation';
-import { BASE_URL } from '../../config/api';
+import { useSuperadminProfile, useSuperadminProfileMutations, useSuperadminDashboardStats, useSuperadminAuditLogStats } from '../../hooks/superadmin';
 import { ProfileHeader } from '../../components/superadmin/ProfileHeader';
 import { ChangePasswordTab } from '../../components/superadmin/ChangePasswordTab';
 import { ActivityLogTab } from '../../components/superadmin/ActivityLogTab';
@@ -21,12 +19,11 @@ export default function Profile() {
    const [editMode, setEditMode] = useState(false);
 
    // API Calls
-   const { data: profileData, loading: profileLoading, refetch: refetchProfile } = useFetch('/auth/me');
-   const { data: platformStats, loading: statsLoading } = useFetch('/superadmin/dashboard/stats');
-   const { data: auditStats } = useFetch('/superadmin/audit-logs/stats');
+   const { data: profileData, loading: profileLoading, refetch: refetchProfile } = useSuperadminProfile();
+   const { data: platformStats, loading: statsLoading } = useSuperadminDashboardStats();
+   const { data: auditStats } = useSuperadminAuditLogStats();
 
-   const { mutate: updateProfile, loading: saving } = useMutation('PUT');
-   const { mutate: uploadAvatar } = useMutation('POST');
+   const { updateProfile, uploadAvatar, isUpdating: saving } = useSuperadminProfileMutations();
 
    // Form State
    const [form, setForm] = useState({ name: '', email: '', phone: '' });
@@ -43,7 +40,7 @@ export default function Profile() {
 
    const handleSave = async () => {
       try {
-         await updateProfile('/auth/me', form);
+         await updateProfile(form);
          setEditMode(false);
          refetchProfile();
       } catch (err) {
@@ -52,16 +49,7 @@ export default function Profile() {
    };
 
    const handleAvatarUpload = async (file) => {
-      const formData = new FormData();
-      formData.append('avatar', file);
-      // In actual app, use fetch directly for FormData or update useMutation to handle FormData
-      const token = JSON.parse(localStorage.getItem('empay_auth') || '{}')?.token;
-      const res = await fetch(`${BASE_URL}/auth/me/avatar`, {
-         method: 'POST',
-         headers: { 'Authorization': `Bearer ${token}` },
-         body: formData
-      });
-      if (!res.ok) throw new Error('Upload failed');
+      await uploadAvatar(file);
       refetchProfile();
    };
 

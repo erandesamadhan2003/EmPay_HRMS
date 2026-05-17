@@ -309,7 +309,7 @@ export async function getAuthProfile(req, res) {
 export async function updateAuthProfile(req, res) {
 	try {
 		const id = req.user.id;
-		const { name, phone, email } = req.body;
+		const { name, phone, email, avatarUrl, avatar_url } = req.body;
 
 		let updateFields = [];
 		let values = [];
@@ -326,6 +326,10 @@ export async function updateAuthProfile(req, res) {
 		if (email !== undefined) {
 			updateFields.push(`email = $${counter++}`);
 			values.push(email);
+		}
+		if (avatarUrl !== undefined || avatar_url !== undefined) {
+			updateFields.push(`avatar_url = $${counter++}`);
+			values.push(avatarUrl ?? avatar_url ?? null);
 		}
 
 		if (updateFields.length > 0) {

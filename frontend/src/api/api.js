@@ -1,27 +1,27 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = '/api';
 
 export const api = axios.create({
-	baseURL: API_BASE_URL,
-	timeout: 120000,
-	headers: {
-		'Content-Type': 'application/json',
-		'Accept': 'application/json',
-	},
+    baseURL: API_BASE_URL,
+    timeout: 120000,
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    },
 });
 
 /** Let multipart boundaries be set correctly by the runtime. */
 api.interceptors.request.use((config) => {
-	if (config.data instanceof FormData) {
-		delete config.headers['Content-Type'];
-	}
-	return config;
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
+    return config;
 });
 
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = JSON.parse(localStorage.getItem('empay_auth') || '{}')?.token || localStorage.getItem('token');
         if (token && config.headers) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
@@ -40,12 +40,13 @@ api.interceptors.response.use(
             console.warn('Token expired, invalid, or missing context. Forcing logout.');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('empay_auth');
             window.location.href = '/login';
             return Promise.reject(error);
         }
 
         const isNetworkError = error.code === 'ERR_NETWORK' || error.message === 'Network Error';
-        
+
         if (isNetworkError) {
             console.warn('Persistent Network Error:', {
                 message: error.message,

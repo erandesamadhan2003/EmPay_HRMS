@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useMutation } from '../../hooks/useMutation';
-import { BASE_URL } from '../../config/api';
+import { useSuperadminProfileMutations } from '../../hooks/superadmin';
 
 const C = {
   bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24',
@@ -21,7 +20,7 @@ const InputGroup = ({ label, value, onChange, placeholder, type = 'password', er
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           style={{
-            width: '100%', padding: '12px 40px 12px 14px', background: C.bg, 
+            width: '100%', padding: '12px 40px 12px 14px', background: C.bg,
             border: `1px solid ${error ? C.danger : C.border}`, borderRadius: '8px',
             color: C.text, fontSize: '14px', outline: 'none', boxSizing: 'border-box',
             transition: 'border-color 0.2s'
@@ -29,7 +28,7 @@ const InputGroup = ({ label, value, onChange, placeholder, type = 'password', er
           onFocus={e => !error && (e.target.style.borderColor = C.teal)}
           onBlur={e => !error && (e.target.style.borderColor = C.border)}
         />
-        <button 
+        <button
           onClick={() => setShow(!show)}
           style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: C.muted, cursor: 'pointer', padding: '4px' }}
         >
@@ -65,7 +64,7 @@ export const ChangePasswordTab = ({ onSuccess }) => {
   const strength = getStrength(newPwd);
   const strengthLabels = ["Very Weak", "Very Weak", "Weak", "Fair", "Strong", "Very Strong"];
   const strengthColors = [C.danger, C.danger, C.danger, C.warning, C.teal, C.teal];
-  
+
   const requirements = [
     { label: "At least 8 characters", met: newPwd.length >= 8 },
     { label: "At least one uppercase letter", met: /[A-Z]/.test(newPwd) },
@@ -76,18 +75,18 @@ export const ChangePasswordTab = ({ onSuccess }) => {
   const match = confirm && newPwd === confirm;
   const canSubmit = requirements.every(r => r.met) && match && current;
 
-  const { mutate: changePwd } = useMutation('POST');
+  const { changePassword } = useSuperadminProfileMutations();
 
   const handleSubmit = async () => {
     setLoading(true);
     setStatus(null);
     try {
-      await changePwd('/auth/change-password', {
+      await changePassword({
         current_password: current,
         new_password: newPwd,
         confirm_password: confirm
       });
-      
+
       setStatus({ type: 'success', msg: 'Password updated successfully' });
       setCurrent(''); setNewPwd(''); setConfirm('');
       setTimeout(() => setStatus(null), 3000);
@@ -106,16 +105,16 @@ export const ChangePasswordTab = ({ onSuccess }) => {
           {status.msg}
         </div>
       )}
-      
-      <InputGroup 
-        label="Current Password" value={current} onChange={setCurrent} 
-        placeholder="Enter current password" 
+
+      <InputGroup
+        label="Current Password" value={current} onChange={setCurrent}
+        placeholder="Enter current password"
         error={status?.type === 'error' && status.msg.includes('Current') ? status.msg : null}
       />
-      
+
       <div style={{ position: 'relative' }}>
         <InputGroup label="New Password" value={newPwd} onChange={setNewPwd} placeholder="Enter new password" />
-        
+
         {/* Strength Meter */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
@@ -171,13 +170,13 @@ export const ChangePasswordTab = ({ onSuccess }) => {
             <div style={{ fontSize: '13px', color: C.muted, marginTop: '2px' }}>Add an extra layer of security to your account</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-             <span style={{ fontSize: '12px', color: C.warning, background: `${C.warning}10`, padding: '2px 8px', borderRadius: '12px' }}>Not enabled</span>
-             <div 
-               onClick={() => alert('Feature coming soon')}
-               style={{ width: '40px', height: '22px', borderRadius: '11px', background: C.border, cursor: 'pointer', position: 'relative', transition: 'background 0.3s' }}
-             >
-                <div style={{ position: 'absolute', left: '3px', top: '3px', width: '16px', height: '16px', borderRadius: '50%', background: C.muted }} />
-             </div>
+            <span style={{ fontSize: '12px', color: C.warning, background: `${C.warning}10`, padding: '2px 8px', borderRadius: '12px' }}>Not enabled</span>
+            <div
+              onClick={() => alert('Feature coming soon')}
+              style={{ width: '40px', height: '22px', borderRadius: '11px', background: C.border, cursor: 'pointer', position: 'relative', transition: 'background 0.3s' }}
+            >
+              <div style={{ position: 'absolute', left: '3px', top: '3px', width: '16px', height: '16px', borderRadius: '50%', background: C.muted }} />
+            </div>
           </div>
         </div>
       </div>

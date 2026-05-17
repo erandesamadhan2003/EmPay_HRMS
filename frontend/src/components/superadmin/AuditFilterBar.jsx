@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useFetch } from '../../hooks/useFetch';
+import { useSuperadminCompanies } from '../../hooks/superadmin';
 
 const C = {
   bg: '#0A0A0F', surface: '#13131A', surfaceHover: '#1A1A24',
@@ -19,7 +19,7 @@ export const AuditFilterBar = ({ filters, onChange, onExport, loading }) => {
   const [search, setSearch] = useState(filters.search || '');
 
   // Fetch companies for the filter
-  const { data: companiesData } = useFetch('/superadmin/companies?status=active&limit=100');
+  const { data: companiesData } = useSuperadminCompanies({ status: 'active', limit: 100 });
 
   let companies = [];
   if (companiesData?.data?.items && Array.isArray(companiesData.data.items)) {

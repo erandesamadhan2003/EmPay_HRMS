@@ -10,3 +10,4 @@ export { reportsService } from "./reports.service";
 export { salaryStructuresService } from "./salaryStructures.service";
 export { settingsService } from "./settings.service";
 export { timeOffService } from "./timeOff.service";
+export { superadminService } from "./superadmin.service";
