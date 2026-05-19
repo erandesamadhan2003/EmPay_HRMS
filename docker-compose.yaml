@@ -35,9 +35,7 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: .
-      dockerfile: docker/backend.Dockerfile
+    build: ./backend
     env_file:
       - .env.prod
     depends_on:
@@ -52,9 +50,7 @@ services:
       - redis_network
 
   frontend:
-    build:
-      context: .
-      dockerfile: docker/frontend.Dockerfile
+    build: ./frontend
     env_file:
       - .env.prod
     ports:
