@@ -5,3 +5,17 @@
 **/.env.*
 **/npm-debug.log
 **/.DS_Store
+
+./backend/node_modules
+./backend/dist
+./backend/.git
+./backend/.gitignore    
+./backend/.env.*
+./backend/.dockerignore
+
+./frontend/node_modules
+./frontend/dist
+./frontend/.git
+./frontend/.gitignore
+./frontend/.env.*
+./frontend/.dockerignore
