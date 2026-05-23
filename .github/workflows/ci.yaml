@@ -1,0 +1,29 @@
+name: CI
+on:
+  push: 
+    branches: 
+      - main
+
+jobs: 
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [staging, production] 
+    
+    steps:
+    # build backend
+      - name: Checkout backend Code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '26'
+      - name: setup bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.3'
+      - name: setup environment variables
+        run: echo "ENVIRONMENT=${{ matrix.environment }}" >> $GITHUB_ENV
+      
+        
