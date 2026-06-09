@@ -1,19 +1,8 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "server.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "test:api": "bun scripts/api-e2e.mjs",
-    "seed": "bun scripts/seed.js",
-    "start": "bun server.js",
-    "dev": "bun --watch server.js"
-  },
-  "keywords": [],
   "author": "",
-  "license": "ISC",
-  "type": "module",
+  "main": "server.js",
   "dependencies": {
     "bcrypt": "^5.1.1",
     "cors": "^2.8.6",
@@ -27,5 +16,16 @@
     "redis": "^5.12.1",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^10.0.0"
-  }
+  },
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:api": "bun scripts/api-e2e.mjs",
+    "seed": "bun scripts/seed.js",
+    "start": "bun server.js",
+    "dev": "bun --watch server.js"
+  },
+  "type": "module"
 }
