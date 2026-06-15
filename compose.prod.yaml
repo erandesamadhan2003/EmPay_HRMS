@@ -17,6 +17,10 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
   redis:
     image: redis:6-alpine
@@ -33,29 +37,40 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   backend:
-    build:
-      context: ./backend
+    build: ./backend
     env_file:
       - .env.prod
-    ports:
-      - "3000:3000"
     depends_on:
       database:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - backend_network
       - database_network
       - redis_network
-
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1"
 
   frontend:
-    build:
-      context: ./frontend
+    build: 
+      context: .
+      dockerfile: nginx/Dockerfile
     env_file:
       - .env.prod
     ports:
