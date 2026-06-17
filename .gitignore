@@ -2,3 +2,4 @@
 .env.prod
 .env.dev
 .git
+.vscode/
