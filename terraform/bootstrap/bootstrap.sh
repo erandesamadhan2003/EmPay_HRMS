@@ -11,6 +11,7 @@ SP_NAME="empayhrms-sp"
 mkdir -p ~/Secrets/empayhrms
 chmod 700 ~/Secrets/empayhrms
 
+
 echo "==> Creating Resource Group..."
 az group create \
   --name $RESOURCE_GROUP_NAME \
