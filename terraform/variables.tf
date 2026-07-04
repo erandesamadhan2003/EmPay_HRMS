@@ -10,6 +10,12 @@ variable "project" {
 	default = "empayhrms"
 }
 
+variable "environment" {
+  description = "Which environment: dev, staging, or prod"
+  type        = string
+  default     = "prod"
+}
+
 variable "node_vm_size" {
 	description = "VM size for AKS worker nodes. D2s_v3 = 2 CPU, 8GB RAM."
 	type = string
