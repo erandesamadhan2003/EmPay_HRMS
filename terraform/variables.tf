@@ -19,7 +19,7 @@ variable "environment" {
 variable "node_vm_size" {
 	description = "VM size for AKS worker nodes. D2s_v3 = 2 CPU, 8GB RAM."
 	type = string
-	default = "Standard_D2s_v3"
+	default = "Standard_B2as_v2"
 }
 
 variable "node_count_min" {
@@ -37,7 +37,7 @@ variable "node_count_max" {
 variable "kubernetes_version" {
   description = "Kubernetes version for AKS cluster"
   type = string
-  default = "1.29"
+  default = "1.35"
 }
 
 variable "postgres_password" {
@@ -48,6 +48,12 @@ variable "postgres_password" {
 
 variable "redis_password" {
   description = "Redis Auth password"
+  type = string
+  sensitive = true
+}
+
+variable "jwt_secret" {
+  description = "JWT secret for signing tokens"
   type = string
   sensitive = true
 }

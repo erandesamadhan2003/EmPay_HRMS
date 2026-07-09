@@ -1,3 +1,30 @@
-#!/bin/bash
+# .gitignore for terraform/
+# ==========================
 
-set -e
+# Provider binaries — downloaded by terraform init, hundreds of MB
+.terraform/
+
+# State files — may contain secrets in plaintext, managed remotely
+*.tfstate
+*.tfstate.backup
+
+# Crash log from failed apply
+crash.log
+
+# Override files (local developer overrides, should never be shared)
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Lock file for provider versions — COMMIT THIS, it ensures everyone uses same provider version
+# .terraform.lock.hcl  ← do NOT add this to gitignore
+
+# Local variable files that might contain secrets
+*.auto.tfvars
+
+# IDE files
+.idea/
+.vscode/
+
+tfplan

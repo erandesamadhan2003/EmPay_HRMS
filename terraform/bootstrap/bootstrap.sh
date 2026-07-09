@@ -1,8 +1,8 @@
 #!/bin/bash
-
 set -e
 
-RESOURCE_GROUP_NAME="empayhrms-rg"
+
+TFSTATE_RESOURCE_GROUP="empayhrms-tfstate-rg"
 LOCATION="centralindia"
 STORAGE_ACCOUNT_NAME="empaytfstate$RANDOM"
 CONTAINER_NAME="tfstate"
@@ -11,17 +11,16 @@ SP_NAME="empayhrms-sp"
 mkdir -p ~/Secrets/empayhrms
 chmod 700 ~/Secrets/empayhrms
 
-
-echo "==> Creating Resource Group..."
+echo "==> Creating Terraform state Resource Group..."
 az group create \
-  --name $RESOURCE_GROUP_NAME \
+  --name $TFSTATE_RESOURCE_GROUP \
   --location $LOCATION \
   > ~/Secrets/empayhrms/resource_group.json
 
 echo "==> Creating Storage Account: $STORAGE_ACCOUNT_NAME"
 az storage account create \
   --name $STORAGE_ACCOUNT_NAME \
-  --resource-group $RESOURCE_GROUP_NAME \
+  --resource-group $TFSTATE_RESOURCE_GROUP \
   --location $LOCATION \
   --sku Standard_LRS \
   --kind StorageV2 \
@@ -43,3 +42,14 @@ az ad sp create-for-rbac \
 
 chmod 600 ~/Secrets/empayhrms/service_principal.json
 
+echo ""
+echo "=========================================="
+echo "Bootstrap complete."
+echo ""
+echo "State RG:  $TFSTATE_RESOURCE_GROUP  ← managed manually, never by Terraform"
+echo "App RG:    empayhrms-rg             ← created by terraform apply"
+echo ""
+echo "PUT THIS IN backend.tf:"
+echo "  resource_group_name  = \"$TFSTATE_RESOURCE_GROUP\""
+echo "  storage_account_name = \"$STORAGE_ACCOUNT_NAME\""
+echo "=========================================="

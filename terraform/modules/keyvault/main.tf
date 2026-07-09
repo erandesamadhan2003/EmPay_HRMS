@@ -34,7 +34,7 @@ resource "azurerm_key_vault" "main" {
 
 	access_policy {
 		tenant_id = data.azurerm_client_config.current.tenant_id
-		object_id = var.aks.managed_identity_object_id
+		object_id = var.aks_managed_identity_object_id
 
 		secret_permissions = ["Get", "List"]
 	}
