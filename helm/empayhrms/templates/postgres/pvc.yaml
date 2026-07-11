@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: {{ printf "%s-postgres-pvc" .Values.global.project }}
+    namespace: {{ .Values.global.namespace }}
+    labels:
+        app.kubernetes.io/component: postgres-pvc
+{{- include "empayhrms.labels" . | nindent 8 }}
+
+spec: 
+    accessModes:
+        - ReadWriteOnce
+    storageClassName: {{ .Values.postgres.storageClass }}
+    resources: 
+        requests: 
+            storage: {{ .Values.postgres.storage }}
+

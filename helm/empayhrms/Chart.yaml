@@ -1,0 +1,6 @@
+apiVersion: v2
+name: empayhrms
+description: EMPAY HRMS application stack - backend, frontend, postgres, redis
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

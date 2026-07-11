@@ -3,3 +3,5 @@
 .env.dev
 .git
 .vscode/
+
+helm/empayhrms/values.secrets.yaml

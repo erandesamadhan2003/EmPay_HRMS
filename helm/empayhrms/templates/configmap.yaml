@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+    namespace: {{ .Values.global.namespace }}
+    name: {{ printf "%s-configmap" .Values.global.project }}
+    labels:
+        app.kubernetes.io/component: configmap
+{{ include "empayhrms.labels" . | indent 8 }}
+
+data: 
+    NODE_ENV: {{ .Values.config.nodeEnv | quote }}
+    PORT: {{ .Values.backend.port | quote }}
+
+    DB_HOST: {{ .Values.config.dbHost | quote }}
+    DB_PORT: {{ .Values.config.dbPort | quote }}
+    DB_NAME: {{ .Values.config.dbName | quote }}
+    DB_USER: {{ .Values.postgres.username | quote }}
+
+    REDIS_HOST: {{ .Values.config.redisHost | quote }}
+    REDIS_PORT: {{ .Values.config.redisPort | quote }}
+    REDIS_CACHE_ENABLED: {{ .Values.config.redisCacheEnabled | quote }}
+
+    GROQ_MODEL: {{ .Values.config.groqModel | quote }}
+
+    VITE_API_BASE_URL: {{ .Values.config.viteApiBaseUrl | quote }}
+    VITE_APP_NAME: {{ .Values.config.viteAppName | quote }}
