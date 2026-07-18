@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ printf "%s-backend" .Values.global.project }}
+    namespace: {{ .Values.global.namespace }}
+    metadata:
+        app.kubernetes.io/component: deployment
+{{- include "empayhrms.labels" . | nindent 8 }}
+spec: 
+    replicas: {{ .Values.backend.replicas }}
+    
+    selector: 
+        matchLabels:  
+            app: backend
+    
+    template:
+        labels:
+            app: backend
+
+        containers:
+          - name: backend
+            image: empayhrmsacr.azureacr.io/backend:latest
+            imagePullPolicy: IfNotPresent
+        imagePullSecrets:
+          - name: 

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+    name: {{ .Values.config.redisHost }}
+    namespace: {{ .Values.global.namespace }}
+    labels:
+        app.kubernetes.io/component: {{ printf "%s-redis-svc" .Values.global.project }}
+{{- include "empayhrms.labels" . | nindent 8 }}
+spec: 
+    type: ClusterIP
+    ports: 
+      - port: 6379
+        targetPort: 6379
+        name: redis
+    selector:
+        app: redis

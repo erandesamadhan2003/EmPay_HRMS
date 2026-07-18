@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Service
+metadata:
+    name: postgres-headless-svc
+    namespace: {{ .Values.global.namespace }}
+    labels:
+        app.kubernetes.io/component: postgres-headless-service
+{{- include "empayhrms.labels" . | nindent 8 }}
+
+spec:
+    selector: 
+        app: postgres
+    clusterIP: None
+    ports: 
+      - port: 5432
+        name: postgres
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: {{ .Values.config.dbHost }}
+    namespace: {{ .Values.global.namespace }}
+    labels:
+        app.kubernetes.io/component: postgres-cluster-ip-service
+{{- include "empayhrms.labels" . | nindent 8 }}
+
+spec: 
+    selector: 
+        app: postgres
+    type: ClusterIP 
+    ports:
+      - port: 5432
+        targetPort: 5432
+        name: postgres
+

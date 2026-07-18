@@ -14,7 +14,7 @@ data:
 
     DB_HOST: {{ .Values.config.dbHost | quote }}
     DB_PORT: {{ .Values.config.dbPort | quote }}
-    DB_NAME: {{ .Values.config.dbName | quote }}
+    DB_NAME: {{ .Values.postgres.database | quote }}
     DB_USER: {{ .Values.postgres.username | quote }}
 
     REDIS_HOST: {{ .Values.config.redisHost | quote }}

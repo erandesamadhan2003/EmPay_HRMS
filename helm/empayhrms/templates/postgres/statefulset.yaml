@@ -1,76 +1,116 @@
 apiVersion: apps/v1
 kind: StatefulSet
-metaData:
+
+metadata:
     name: {{ printf "%s-postgres-statefulset" .Values.global.project }}
-    namespace: {{ .Values.global.namespace }} 
+    namespace: {{ .Values.global.namespace }}
     labels:
-        app.kubernetes.io/components: postgres-statefulset
+        app.kubernetes.io/component: postgres-statefulset
 {{- include "empayhrms.labels" . | nindent 8 }}
 
 spec:
-    serviceName: {{ printf "%s-postgres-headless-svc" .Values.global.project }}
-    
-    selector: 
-        matchLabels:
-            name: {{ printf "%s-postgres-statefulset" .Values.global.project }}
-    
+    serviceName: postgres-headless-svc
+
     replicas: 1
     minReadySeconds: 15
-    
-    template: 
-        metadata: 
-            labels: 
-                name: {{ printf "%s-postgres-statefulset" .Values.global.project }}
-        spec: 
-            terminationGracePeriodSeconds: 10
+
+    selector:
+        matchLabels:
+            app: postgres
+
+    template:
+        metadata:
+            labels:
+                app: postgres
+
+        spec:
+            terminationGracePeriodSeconds: 60
+
             containers:
-              - name: postgres
-                image: {{ .Values.postgres.image }}
-                ports: 
-                  - containerPort: {{ .Values.postgres.port }}
-                 
-                env: 
-                  - name: POSTGRES_USER
-                    valuesFrom: 
-                        configMapKeyRef: 
-                            name: {{ printf "%s-configmap" .Values.global.project }}
-                            key: DB_USER
-                  - name: POSTGRES_DB
-                    valuesFrom:
-                        configMapKeyRef:
-                            name: {{ printf "%s-configmap" .Values.global.project }}
-                            key: DB_NAME
-                  - name: POSTGRES_PASSWORD
-                    valuesFrom:
-                        secretKeyRef: 
-                            name: {{ printf "%s-app-secrets" .Values.global.project }}
-                            key: DB_PASSWORD
-                volumeMounts:
-                  - name: postgres-data
-                    mountPath: /var/lib/postgresql/data
-                  - name: secrets-store
-                    mountPath: /mnt/secrets-store
-                    readOnly: true
-                
-                resources: 
-                    requests: 
-                        cpu: {{ .Values.postgres.resources.requests.cpu }}
-                        memory: {{ .Values.postgres.resources.requests.memory }}
-                    limits: 
-                        cpu: {{ .Values.postgres.resources.limits.cpu }}
-                        memory: {{ .Values.postgres.resources.limits.memory }}
+                - name: postgres
+                  image: {{ .Values.postgres.image }}
+
+                  ports:
+                      - containerPort: {{ .Values.postgres.port }}
+
+                  env:
+                      - name: POSTGRES_USER
+                        valueFrom:
+                            configMapKeyRef:
+                                name: {{ printf "%s-configmap" .Values.global.project }}
+                                key: DB_USER
+
+                      - name: POSTGRES_DB
+                        valueFrom:
+                            configMapKeyRef:
+                                name: {{ printf "%s-configmap" .Values.global.project }}
+                                key: DB_NAME
+
+                      - name: POSTGRES_PASSWORD
+                        valueFrom:
+                            secretKeyRef:
+                                name: {{ printf "%s-kv-secrets" .Values.global.project }}
+                                key: DB_PASSWORD
+
+                  volumeMounts:
+                      - name: postgres-data
+                        mountPath: /var/lib/postgresql/data
+
+                      - name: secrets-store
+                        mountPath: /mnt/secrets-store
+                        readOnly: true
+
+                  resources:
+                      requests:
+                          cpu: {{ .Values.postgres.resources.requests.cpu }}
+                          memory: {{ .Values.postgres.resources.requests.memory }}
+                      limits:
+                          cpu: {{ .Values.postgres.resources.limits.cpu }}
+                          memory: {{ .Values.postgres.resources.limits.memory }}
+
+                  startupProbe:
+                      exec:
+                          command:
+                              - pg_isready
+                              - -U
+                              - {{ .Values.postgres.username }}
+                              - -d
+                              - {{ .Values.postgres.database }}
+                      periodSeconds: 10
+                      failureThreshold: 30
+
+                  readinessProbe:
+                      exec:
+                          command:
+                              - pg_isready
+                              - -U
+                              - {{ .Values.postgres.username }}
+                              - -d
+                              - {{ .Values.postgres.database }}
+                      initialDelaySeconds: 15
+                      periodSeconds: 10
+                      failureThreshold: 3
+
+                  livenessProbe:
+                      exec:
+                          command:
+                              - pg_isready
+                              - -U
+                              - {{ .Values.postgres.username }}
+                              - -d
+                              - {{ .Values.postgres.database }}
+                      initialDelaySeconds: 30
+                      periodSeconds: 20
+                      failureThreshold: 3
 
             volumes:
-              - name: postgres-data
-                persistentVolumeClaim: 
-                    claimName: {{ printf "%s-postgres-pvc" .Values.global.project }}
-                
-              - name: secrets-store
-                csi: 
-                    driver: secrets-store.csi.k8s.io
-                    readOnly: true
-                    volumeAttributes: 
-                        secretProviderClass: {{ printf "%s-kv-secrets" .Values.global.project }}
+                - name: postgres-data
+                  persistentVolumeClaim:
+                      claimName: {{ printf "%s-postgres-pvc" .Values.global.project }}
 
-                    
-
+                - name: secrets-store
+                  csi:
+                      driver: secrets-store.csi.k8s.io
+                      readOnly: true
+                      volumeAttributes:
+                          secretProviderClass: {{ printf "%s-kv-secrets" .Values.global.project }}

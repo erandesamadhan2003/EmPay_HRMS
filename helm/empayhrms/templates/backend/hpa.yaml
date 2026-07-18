@@ -1,0 +1,24 @@
+apiVersion: autoscaling/v2
+kind: HorizantalPodAutoscaler
+metadata:
+    name: {{ printf "%s-backend-hpa" .Values.global.project }}
+    namesapce: {{ .Values.global.namespace }}
+    labels:
+        app.kubernetes.io/component: hpa
+{{- include "empayhrms.labels" . | nindent 8 }}
+
+spec:
+    scaleTargetRef:
+        apiVersion: apps/v1 
+        kind: Deployment
+        name: {{ printf "%s-backend" .Values.global.project }}
+    minReplicas: {{ .Values.backend.hpa.minReplicas }}
+    maxReplicas: {{ .Values.backend.hpa.maxReplicas }}  
+    metrics:
+      - type: Resource
+        resource: 
+            name: cpu
+            target: 
+                type: Utilization
+                averageUtilization: {{ .Values.backend.cpuTargetPercent }}
+
