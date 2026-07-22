@@ -1,8 +1,8 @@
 apiVersion: autoscaling/v2
-kind: HorizantalPodAutoscaler
+kind: HorizontalPodAutoscaler
 metadata:
     name: {{ printf "%s-backend-hpa" .Values.global.project }}
-    namesapce: {{ .Values.global.namespace }}
+    namespace: {{ .Values.global.namespace }}
     labels:
         app.kubernetes.io/component: hpa
 {{- include "empayhrms.labels" . | nindent 8 }}
@@ -20,5 +20,5 @@ spec:
             name: cpu
             target: 
                 type: Utilization
-                averageUtilization: {{ .Values.backend.cpuTargetPercent }}
+                averageUtilization: {{ .Values.backend.hpa.cpuTargetPercent }}
 

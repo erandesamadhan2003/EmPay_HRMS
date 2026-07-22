@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
     name: {{ printf "%s-backend" .Values.global.project }}
     namespace: {{ .Values.global.namespace }}
-    metadata:
+    labels:
         app.kubernetes.io/component: deployment
 {{- include "empayhrms.labels" . | nindent 8 }}
 spec: 
@@ -14,12 +14,143 @@ spec:
             app: backend
     
     template:
-        labels:
-            app: backend
+        metadata:
+            labels:
+                app: backend
+        
+        spec:
+            nodeSelector:
+                nodepool: user
+            containers:
+              - name: backend
+                image: {{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}
+                imagePullPolicy: Always
+                
+                ports: 
+                  - containerPort: 3000
+                    protocol: "TCP"
 
-        containers:
-          - name: backend
-            image: empayhrmsacr.azureacr.io/backend:latest
-            imagePullPolicy: IfNotPresent
-        imagePullSecrets:
-          - name: 
+
+                livenessProbe: 
+                    httpGet:
+                        path: /api/health
+                        port: 3000
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                
+                readinessProbe:
+                    httpGet:
+                        path: /api/health
+                        port: 3000
+                    initialDelaySeconds: 10
+                    periodSeconds: 5
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+
+                startupProbe: 
+                    httpGet: 
+                        path: /api/health
+                        port: 3000
+                    periodSeconds: 10
+                    failureThreshold: 30
+
+                volumeMounts:
+                  - name: secrets-store
+                    mountPath: /mnt/secrets-store
+                    readOnly: true
+
+                env:
+                  - name: PORT
+                    valueFrom: 
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: PORT
+                  - name: JWT_SECRET
+                    valueFrom:
+                        secretKeyRef: 
+                            name: {{ printf "%s-kv-secrets" .Values.global.project }}
+                            key: JWT_SECRET
+                  - name: DB_HOST
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: DB_HOST
+                  - name: DB_PORT
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: DB_PORT
+                  - name: DB_USER
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: DB_USER
+                  - name: DB_PASSWORD
+                    valueFrom:
+                        secretKeyRef:
+                            name: {{ printf "%s-kv-secrets" .Values.global.project }}
+                            key: DB_PASSWORD
+                  - name: DB_NAME
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: DB_NAME
+                  - name: REDIS_HOST
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: REDIS_HOST
+                  - name: REDIS_PORT
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: REDIS_PORT
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                        secretKeyRef:
+                            name: {{ printf "%s-kv-secrets" .Values.global.project }}
+                            key: REDIS_PASSWORD
+                  - name: REDIS_CACHE_ENABLED
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: REDIS_CACHE_ENABLED
+                  - name: GROQ_API_KEY
+                    valueFrom:
+                        secretKeyRef:
+                            name: {{ printf "%s-app-secrets" .Values.global.project }}
+                            key: GROQ_API_KEY
+                  - name: GROQ_MODEL
+                    valueFrom:
+                        configMapKeyRef:
+                            name: {{ printf "%s-configmap" .Values.global.project }}
+                            key: GROQ_MODEL
+                  - name: SMTP_USER
+                    valueFrom:
+                        secretKeyRef:
+                            name: {{ printf "%s-app-secrets" .Values.global.project }}
+                            key: SMTP_USER
+                  - name: SMTP_PASS
+                    valueFrom:
+                        secretKeyRef:
+                            name: {{ printf "%s-app-secrets" .Values.global.project }}
+                            key: SMTP_PASS
+
+                resources: 
+                    requests:
+                        cpu: {{ .Values.backend.resources.requests.cpu }}
+                        memory: {{ .Values.backend.resources.requests.memory }}
+                    limits:
+                        cpu: {{ .Values.backend.resources.limits.cpu }}
+                        memory: {{ .Values.backend.resources.limits.memory }}
+
+            volumes:
+              - name: secrets-store
+                csi:
+                    driver: secrets-store.csi.k8s.io
+                    readOnly: true
+                    volumeAttributes:
+                        secretProviderClass: {{ printf "%s-kv-secrets" .Values.global.project }}
+    
